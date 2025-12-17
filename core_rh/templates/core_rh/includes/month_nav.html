@@ -1,0 +1,26 @@
+<div class="flex flex-col md:flex-row justify-between items-center mb-6 bg-white p-4 rounded-lg shadow-md border border-gray-100">
+    <!-- Lado Esquerdo: Botão Mês Anterior -->
+    <div class="w-36 flex justify-start">
+        {% if prev_mes %}
+            <a href="?mes={{ prev_mes }}&ano={{ prev_ano }}" class="flex items-center text-orange-600 hover:text-orange-800 font-semibold p-2 rounded-lg transition duration-150 ease-in-out hover:bg-gray-100">
+                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                Mês Anterior
+            </a>
+        {% endif %}
+    </div>
+
+    <!-- Centro: Título da Competência -->
+    <span class="text-2xl font-extrabold text-orange-700 text-center flex-grow">
+        {{ nome_mes }}
+    </span>
+
+    <!-- Lado Direito: Botão Mês Atual -->
+    <div class="w-36 flex justify-end">
+        {% if next_mes %}
+            <a href="?mes={{ next_mes }}&ano={{ next_ano }}" class="flex items-center text-orange-600 hover:text-orange-800 font-semibold p-2 rounded-lg transition duration-150 ease-in-out hover:bg-gray-100">
+                Mês Atual
+                <svg class="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </a>
+        {% endif %}
+    </div>
+</div>

@@ -1,0 +1,88 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .dashboard-header { text-align: center; padding: 40px 20px; margin-bottom: 30px; }
+    .dashboard-header h1 { font-weight: 800; font-size: 2.5rem; color: #111; letter-spacing: -1px; }
+    .dashboard-header .subtitle { color: #6c757d; font-size: 1.1rem; }
+
+    .app-card {
+        background: #fff; border-radius: 20px; padding: 30px; height: 100%;
+        transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #f0f0f0;
+        display: flex; flex-direction: column; align-items: center; text-align: center;
+        text-decoration: none; position: relative; overflow: hidden; color: inherit;
+    }
+    .app-card:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(0,0,0,0.08); border-color: #fff; }
+    
+    .icon-circle {
+        width: 80px; height: 80px; border-radius: 50%; background: #FFF4ED;
+        display: flex; align-items: center; justify-content: center; margin-bottom: 20px; transition: 0.3s;
+    }
+    .app-card:hover .icon-circle { background: #FF6600; }
+    .icon-circle i { font-size: 32px; color: #FF6600; transition: 0.3s; }
+    .app-card:hover .icon-circle i { color: #fff; }
+
+    .app-title { font-weight: 700; font-size: 1.25rem; color: #2c3e50; margin-bottom: 10px; }
+    .app-desc { color: #95a5a6; font-size: 0.9rem; line-height: 1.5; margin-bottom: 20px; }
+
+    .model-links { width: 100%; margin-top: auto; border-top: 1px dashed #eee; padding-top: 15px; text-align: left; }
+    .model-link-item {
+        display: block; padding: 8px 10px; border-radius: 8px; color: #555;
+        font-weight: 500; font-size: 0.9rem; transition: 0.2s; text-decoration: none;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .model-link-item:hover { background: #f8f9fa; color: #FF6600; padding-left: 15px; }
+
+    /* Estilo Especial para Voltar ao Site */
+    .quick-action-card { background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%); color: #fff; }
+    .quick-action-card .icon-circle { background: rgba(255,255,255,0.1); }
+    .quick-action-card .icon-circle i { color: #fff; }
+    .quick-action-card:hover .icon-circle { background: rgba(255,255,255,0.2); }
+    .quick-action-card .app-title { color: #fff; }
+    .quick-action-card .app-desc { color: rgba(255,255,255,0.7); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Olá, <span style="color: #FF6600;">{{ user.first_name|default:user.username }}</span></h1>
+    <p class="subtitle">Bem-vindo ao Portal RH Dividata</p>
+</div>
+
+<div class="row g-4 justify-content-center">
+    <div class="col-md-6 col-lg-4 col-xl-3">
+        <a href="{% url 'home' %}" class="app-card quick-action-card">
+            <div class="icon-circle"><i class="fas fa-globe"></i></div>
+            <div class="app-title">Ir para o Site</div>
+            <p class="app-desc">Acessar área pública do funcionário.</p>
+        </a>
+    </div>
+
+    {% if app_list %}
+        {% for app in app_list %}
+            <div class="col-md-6 col-lg-4 col-xl-3">
+                <div class="app-card">
+                    <div class="icon-circle">
+                        {% if 'Auth' in app.name %}<i class="fas fa-user-shield"></i>
+                        {% elif 'Core' in app.name %}<i class="fas fa-users"></i>
+                        {% else %}<i class="fas fa-folder"></i>{% endif %}
+                    </div>
+                    <div class="app-title">{{ app.name }}</div>
+                    
+                    <div class="model-links">
+                        {% for model in app.models %}
+                            {% if model.object_name != 'RegistroPonto' and model.object_name != 'Cargo' %}
+                                <a href="{{ model.admin_url }}" class="model-link-item">
+                                    {{ model.name }} <i class="fas fa-chevron-right"></i>
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}

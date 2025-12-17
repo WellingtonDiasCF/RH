@@ -1,0 +1,171 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>Portal RH Dividata</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* --- 1. PALETA DE CORES GLOBAL --- */
+        :root {
+            --bg-color: #EFEDE4;
+            --primary-orange: #FF6600;
+            --text-dark: #1A1A1A;
+            --card-white: #FFFFFF;
+            --text-gray: #666666;
+        }
+
+        /* --- 2. CONFIGURAÇÕES GERAIS --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* --- 3. CABEÇALHO --- */
+        h1 { 
+            font-size: 2.5rem; 
+            margin-bottom: 0.5rem; 
+            text-align: center;
+        }
+        .highlight { color: var(--primary-orange); font-weight: 800; }
+        .subtitle { 
+            font-size: 1.2rem; 
+            color: var(--text-gray); 
+            margin-bottom: 3rem; 
+            text-align: center;
+        }
+
+        /* --- 4. ÁREA DOS CARDS (GRID FLEXÍVEL) --- */
+        .dashboard-grid {
+            display: flex;
+            gap: 1.5rem; /* Espaçamento entre cards */
+            justify-content: center; /* Centraliza o bloco */
+            flex-wrap: wrap; /* Permite quebrar linha APENAS se a tela for pequena */
+            width: 100%;
+            max-width: 1400px; /* Largura aumentada para caber 4 cards */
+        }
+
+        /* --- 5. CARTÕES --- */
+        .card {
+            background-color: var(--card-white);
+            /* Tamanho base ajustado para 220px para caber 4 lado a lado */
+            flex: 1 1 220px; 
+            max-width: 350px; 
+            
+            padding: 2.5rem 1.5rem;
+            border-radius: 16px;
+            text-align: center;
+            text-decoration: none;
+            color: var(--text-dark);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            border: 1px solid transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            border-color: rgba(255, 102, 0, 0.2);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            color: var(--primary-orange);
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .card-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 0.5rem; display: block; }
+        .card-desc { font-size: 0.95rem; color: var(--text-gray); display: block; }
+
+        /* --- 6. FORMULÁRIO DE SAIR --- */
+        .logout-form {
+            margin-top: 4rem;
+        }
+
+        .logout-btn {
+            background: none;
+            border: none;
+            color: var(--text-gray);
+            font-size: 1rem;
+            font-family: inherit; 
+            cursor: pointer;
+            transition: color 0.2s;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px; 
+        }
+
+        .logout-btn:hover {
+            color: var(--primary-orange);
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Portal <span class="highlight">RH DIVIDATA</span></h1>
+    <p class="subtitle">Olá, <strong>{{ user.first_name|default:user.username }}</strong>. Selecione uma opção abaixo:</p>
+
+    <div class="dashboard-grid">
+        
+        {% if can_access_rh_area %}
+        <a href="/admin/" class="card">
+            <i class="fa-solid fa-building-user card-icon"></i>
+            <span class="card-title">Administração RH</span>
+            <span class="card-desc">Gerenciar funcionários e equipes</span>
+        </a>
+        {% endif %}
+
+        {% if can_access_rh_area %}
+        <a href="{% url 'rh_summary' %}" class="card">
+            <i class="fa-solid fa-file-signature card-icon"></i>
+            <span class="card-title">Área RH</span>
+            <span class="card-desc">Visão geral e download de folhas</span>
+        </a>
+        {% endif %}
+
+        {% if is_gestor %}
+        <a href="{% url 'area_gestor' %}" class="card">
+            <i class="fa-solid fa-users card-icon"></i>
+            <span class="card-title">Minha Equipe</span>
+            <span class="card-desc">Assinar folhas e ver histórico</span>
+        </a>
+        {% endif %}
+
+        <a href="{% url 'folha_ponto' %}" class="card">
+            <i class="fa-solid fa-clock card-icon"></i>
+            <span class="card-title">Registrar Ponto</span>
+            <span class="card-desc">Controle de entrada e saída</span>
+        </a>
+
+    </div>
+
+    <form action="{% url 'logout' %}" method="post" class="logout-form">
+        {% csrf_token %}
+        <button type="submit" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Sair do sistema
+        </button>
+    </form>
+
+</body>
+</html>

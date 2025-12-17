@@ -1,0 +1,147 @@
+<div class="rh-panel-wrapper">
+    
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom gap-3 bg-white p-3 rounded-4 shadow-sm">
+        
+        <div class="d-flex align-items-center bg-light border rounded-pill p-1">
+            <a href="?mes={{ nav_anterior.mes }}&ano={{ nav_anterior.ano }}&equipe_id={{ equipe_id }}&mode={{ mode }}&q={{ q }}" 
+               class="btn btn-sm btn-white rounded-circle shadow-sm btn-nav-ajax" style="width:32px; height:32px;"><i class="fas fa-chevron-left text-secondary small"></i></a>
+            <div class="px-3 text-center fw-bold text-dark" style="min-width: 130px; font-size: 0.9rem;">{{ nome_mes }}</div>
+            <a href="?mes={{ nav_proximo.mes }}&ano={{ nav_proximo.ano }}&equipe_id={{ equipe_id }}&mode={{ mode }}&q={{ q }}" 
+               class="btn btn-sm btn-white rounded-circle shadow-sm btn-nav-ajax" style="width:32px; height:32px;"><i class="fas fa-chevron-right text-secondary small"></i></a>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center flex-grow-1 justify-content-end">
+            <div class="input-group shadow-sm" style="max-width: 350px;">
+                <input type="text" class="form-control border-end-0 ps-3 bg-white" placeholder="Buscar..." 
+                       value="{{ q }}" onkeydown="handleSearchKey(event, '{{ mode }}', {{ mes_atual }}, {{ ano_atual }}, '{{ equipe_id }}')"
+                       style="border-top-left-radius: 50px; border-bottom-left-radius: 50px;">
+                <button class="btn btn-white border-start-0 text-primary pe-3 bg-white" onclick="executarBuscaRH(this, '{{ mode }}', {{ mes_atual }}, {{ ano_atual }}, '{{ equipe_id }}')"
+                        style="border-top-right-radius: 50px; border-bottom-right-radius: 50px;"><i class="fas fa-search"></i></button>
+            </div>
+            {% if mode == 'list' %}
+            <div class="d-none d-md-block shadow-sm" style="width: 240px;">
+                <select class="form-select rounded-pill border-0 bg-light" onchange="filtrarEquipe(this.value, {{ mes_atual }}, {{ ano_atual }})">
+                    <option value="">Todas as Equipes</option>
+                    {% for eq in todas_equipes %}
+                        <option value="{{ eq.id }}" {% if equipe_id|stringformat:"s" == eq.id|stringformat:"s" %}selected{% endif %}>{{ eq.nome }}</option>
+        {% endfor %}
+                </select>
+    </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if mode == 'summary' %}
+    <div class="row g-4">
+        {% for item in resumo_rh %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100 border-0 shadow-sm rounded-4 hover-lift" 
+                 style="border-left: 6px solid {% if item.progresso == 100 %}#198754{% else %}#0d6efd{% endif %} !important;">
+                
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <h5 class="fw-bold text-dark mb-1">{{ item.equipe.nome }}</h5>
+                        <p class="text-muted small mb-0">Gestão de Ponto</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between small mb-1 align-items-center">
+                            <span class="text-secondary fw-bold">Assinaturas</span>
+                            <span class="fw-bold text-primary">{{ item.progresso }}%</span>
+                        </div>
+                        <div class="progress bg-light" style="height: 8px; border-radius: 10px;">
+                            <div class="progress-bar {% if item.progresso == 100 %}bg-success{% else %}bg-primary{% endif %}" 
+                                 style="width: {{ item.progresso }}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end border-top pt-3">
+                        <a href="{% url 'rh_batch_download' item.equipe.id %}?mes={{ mes_atual }}&ano={{ ano_atual }}" 
+                           class="btn btn-sm btn-dark rounded-pill fw-bold px-4 shadow-sm">
+                            <i class="fas fa-download me-2"></i> Baixar ZIP
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <div class="text-muted opacity-50 mb-3"><i class="fas fa-folder-open fa-4x"></i></div>
+            <h5 class="text-muted fw-bold">Nenhuma equipe encontrada</h5>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if mode == 'list' %}
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0 table-hover">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4 py-3 text-secondary text-uppercase text-xs fw-bold">Funcionário</th>
+                        <th class="text-center py-3 text-secondary text-uppercase text-xs fw-bold">Status</th>
+                        <th class="text-center py-3 text-secondary text-uppercase text-xs fw-bold">Gestor</th>
+                        <th class="text-end pe-4 py-3 text-secondary text-uppercase text-xs fw-bold">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in lista_colaboradores %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex flex-column">
+                                <span class="fw-bold text-dark">{{ item.funcionario.nome_completo }}</span>
+                                <span class="small text-muted">{{ item.funcionario.equipe.nome|default:"-" }}</span>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            {% if item.status_func %}
+                                <span class="badge bg-success-subtle text-success border border-success rounded-pill px-3">Enviado</span>
+                            {% else %}
+                                <span class="badge bg-light text-secondary border rounded-pill px-3">Pendente</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if item.status_gestor %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary rounded-pill px-3">Assinado</span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning rounded-pill px-3">Aguardando</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="d-flex gap-2 justify-content-end">
+                                <a href="{% url 'folha_ponto' %}?funcionario_id={{ item.funcionario.id }}&mes={{ mes_atual }}&ano={{ ano_atual }}" target="_blank" 
+                                   class="btn btn-sm btn-outline-secondary rounded-pill" title="Ver"><i class="far fa-eye"></i></a>
+                                
+                                {% if item.arquivo_anexo %}
+                                <a href="{{ item.arquivo_anexo }}" download="{{ item.nome_download }}" 
+                                   class="btn btn-sm btn-success rounded-pill fw-bold shadow-sm"><i class="fas fa-file-pdf"></i></a>
+                                {% else %}
+                                <button class="btn btn-sm btn-light border rounded-pill text-muted" disabled><i class="fas fa-file-pdf"></i></button>
+                                {% endif %}
+
+                                {% if item.status_gestor %}
+                                <a href="{% url 'rh_unlock_timesheet' item.funcionario.id mes_atual ano_atual %}" 
+                                   class="btn btn-sm btn-outline-danger rounded-pill fw-bold" 
+                                   onclick="return confirm('Desbloquear?');"><i class="fas fa-lock-open"></i></a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center py-5 text-muted"><p>Nenhum registro.</p></td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    document.querySelectorAll('.hover-lift').forEach(el => {
+        el.addEventListener('mouseenter', () => el.style.transform = 'translateY(-5px)');
+        el.addEventListener('mouseleave', () => el.style.transform = 'translateY(0)');
+        el.style.transition = 'transform 0.2s ease';
+    });
+</script>

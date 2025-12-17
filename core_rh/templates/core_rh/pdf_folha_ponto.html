@@ -1,0 +1,189 @@
+{% load static %}
+{% load i18n %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Folha de Ponto</title>
+    <style>
+        @page { size: A4 portrait; margin: 0mm; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; }
+        
+        table.master-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #000;
+            table-layout: fixed;
+        }
+
+        th, td {
+            border: 1px solid #000;
+            padding: 4px;
+            vertical-align: middle;
+            word-wrap: break-word;
+        }
+
+        .header-gray {
+            background-color: #969696;
+            color: #262626;
+            font-weight: bold;
+            text-align: center;
+            font-size: 12pt;
+            height: 30px;
+        }
+
+        .section-header {
+            font-weight: bold;
+            text-align: center;
+            background-color: #fff;
+        }
+
+        .cell-center { text-align: center; font-size: 8pt; }
+        .cell-bold { font-weight: bold; }
+
+        .fill-gray {
+            background-color: #969696 !important;
+        }
+
+        .logo-cell {
+            text-align: center;
+            vertical-align: middle;
+            height: 60px;
+        }
+        .company-text {
+            font-size: 8pt;
+            font-weight: bold;
+            line-height: 1.3;
+            text-align: left;
+            vertical-align: middle;
+        }
+        .location-text {
+            font-size: 8pt;
+            font-weight: bold;
+            line-height: 1.3;
+            text-align: left;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+
+    <table class="master-table">
+        <tr>
+            <td colspan="13" class="header-gray">FOLHA DE PONTO</td>
+        </tr>
+
+        <tr>
+            <td colspan="4" class="logo-cell">
+                {% if logo_b64 %}
+                    <img src="data:image/png;base64,{{ logo_b64 }}" alt="Logo" style="max-height: 50px; max-width: 100%;">
+                {% else %}
+                    <h3>DIVIDATA</h3>
+                {% endif %}
+            </td>
+            <td colspan="6" class="company-text">
+                Dividata Processamento de Dados Ltda<br>
+                Praça Governador Benedito Valadares, 84 - Sobreloja<br>
+                Divinópolis - Minas Gerais<br>
+                CNPJ: 20.914.172/0001-88
+            </td>
+            <td colspan="3" class="location-text">
+                Local de Trabalho: {{ funcionario.equipe.local_trabalho|default:'Matriz' }}<br><br>
+                Contrato: {{ funcionario.numero_contrato|default:'-' }}
+            </td>
+        </tr>
+
+        <tr>
+            <td colspan="3" class="section-header">Nome</td>
+            <td colspan="2" class="section-header">Mês/Ano</td>
+            <td colspan="3" class="section-header">Função</td>
+            <td colspan="2" class="section-header">Horário</td>
+            <td colspan="2" class="section-header">Intervalo</td>
+            <td colspan="1" class="section-header">Dep.</td>
+        </tr>
+
+        <tr>
+            <td colspan="3" class="cell-center">{{ funcionario.nome_completo|default:user_mock.get_full_name }}</td>
+            <td colspan="2" class="cell-center">{{ mes_ano }}</td>
+            <td colspan="3" class="cell-center">{{ funcionario.cargo.titulo|default:'-' }}</td>
+            <td colspan="2" class="cell-center">
+                {{ funcionario.jornada_entrada|date:"H:i"|default:"08:00" }} às {{ funcionario.jornada_saida|date:"H:i"|default:"18:00" }}
+            </td>
+            <td colspan="2" class="cell-center">{{ funcionario.intervalo_padrao|default:'-' }}</td>
+            <td colspan="1" class="cell-center font-bold">{{ funcionario.equipe.nome|default:'' }}</td>
+        </tr>
+
+        <tr>
+            <td colspan="13" class="header-gray" style="height: 10px;"></td>
+        </tr>
+
+        <tr>
+            <td rowspan="2" colspan="2" class="cell-center cell-bold">DATA</td>
+            <td colspan="4" class="cell-center cell-bold">HORÁRIO NORMAL</td>
+            <td colspan="3" class="cell-center cell-bold">HORAS EXTRAS</td>
+            <td rowspan="2" colspan="4" class="cell-center cell-bold">Observação Horas Extras/Faltas</td>
+        </tr>
+
+        <tr>
+            <td class="cell-center cell-bold" style="width: 8%;">ENT</td>
+            <td class="cell-center cell-bold" style="width: 8%;">SAÍ</td>
+            <td class="cell-center cell-bold" style="width: 8%;">ENT</td>
+            <td class="cell-center cell-bold" style="width: 8%;">SAÍ</td>
+            <td class="cell-center cell-bold" style="width: 8%;">ENT</td>
+            <td class="cell-center cell-bold" style="width: 8%;">SAÍ</td>
+            <td class="cell-center cell-bold" style="width: 8%;">TOTAL</td>
+        </tr>
+
+        {% for dia in dias_do_mes %}
+            {% with reg=dia.registro %}
+            <tr class="{% if dia.eh_feriado or dia.data|date:'w' == '0' or dia.data|date:'w' == '6' %}fill-gray{% endif %}">
+                
+                <td colspan="2" class="cell-center">
+                    {{ dia.data|date:"d/m/Y" }}
+                </td>
+
+                <td class="cell-center">{{ reg.entrada_manha|date:"H:i"|default:"" }}</td>
+                <td class="cell-center">{{ reg.saida_almoco|date:"H:i"|default:"" }}</td>
+                <td class="cell-center">{{ reg.volta_almoco|date:"H:i"|default:"" }}</td>
+                <td class="cell-center">{{ reg.saida_tarde|date:"H:i"|default:"" }}</td>
+
+                <td class="cell-center">{{ reg.extra_entrada|date:"H:i"|default:"" }}</td>
+                <td class="cell-center">{{ reg.extra_saida|date:"H:i"|default:"" }}</td>
+                <td class="cell-center">{{ reg.horas_extra|default:"" }}</td>
+
+                <td colspan="4" class="cell-center">
+                    {% if dia.eh_feriado %}
+                        FERIADO
+                    {% else %}
+                        {{ reg.observacao|default:"" }}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endwith %}
+        {% endfor %}
+
+        <tr>
+            <td colspan="13" class="cell-center cell-bold" style="padding: 10px;">
+                Esta folha de ponto está de acordo com o Art. 74, Parágrafo 2º Da C.L.T.
+            </td>
+        </tr>
+
+        <tr>
+            <td colspan="6" class="header-gray" style="height: 50px; vertical-align: bottom;">
+                Assinatura do Colaborador
+            </td>
+            <td colspan="7" class="header-gray" style="height: 50px; vertical-align: bottom;">
+                Assinatura do Gestor
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="6" style="height: 80px;"></td>
+            <td colspan="7" style="height: 80px;"></td>
+        </tr>
+
+    </table>
+
+</body>
+</html>

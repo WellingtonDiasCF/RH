@@ -1,0 +1,230 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Área do Gestor - Minha Equipe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans">
+    <div class="flex justify-between items-center mb-4 bg-white p-3 rounded shadow-sm">
+    <div>
+        {% if nav_anterior %}
+            <a href="?mes={{ nav_anterior.mes }}&ano={{ nav_anterior.ano }}" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                Competência Anterior
+            </a>
+        {% else %}
+            <span class="text-gray-400 cursor-not-allowed px-4 py-2 border rounded flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                Anterior
+            </span>
+        {% endif %}
+    </div>
+
+    <div class="text-lg font-bold text-gray-800">
+        Competência: {{ mes_atual }}/{{ ano_atual }}
+    </div>
+
+    <div>
+        {% if nav_proximo %}
+            <a href="?mes={{ nav_proximo.mes }}&ano={{ nav_proximo.ano }}" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition flex items-center">
+                Competência Atual
+                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </a>
+        {% else %}
+            <span class="text-gray-400 cursor-not-allowed px-4 py-2 border rounded flex items-center">
+                Atual
+                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </span>
+        {% endif %}
+    </div>
+</div>
+    {% if messages %}
+        <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2">
+            {% for message in messages %}
+                <div class="flex items-center w-full max-w-xs p-4 text-gray-700 bg-white rounded-lg shadow border-l-4 {% if message.tags == 'success' %}border-green-500 bg-green-50{% else %}border-red-500 bg-red-50{% endif %}" role="alert">
+                    <div class="ml-3 text-sm font-normal">{{ message }}</div>
+                    <button type="button" class="ml-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg p-1.5 hover:bg-gray-100 inline-flex h-8 w-8" onclick="this.parentElement.remove()">
+                        <span class="sr-only">Fechar</span>
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 14 14"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/></svg>
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+        <script>setTimeout(() => { document.getElementById('toast-container')?.remove(); }, 5000);</script>
+    {% endif %}
+
+    <div class="max-w-7xl mx-auto p-6">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Gerenciamento de Equipe</h1>
+            <a href="{% url 'home' %}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Voltar</a>
+        </div>
+
+        <div class="bg-white shadow-md rounded-lg overflow-hidden">
+            <table class="min-w-full leading-normal">
+                <thead>
+                    <tr>
+                        <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Funcionário</th>
+                        <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Status Mês Atual</th>
+                        <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Ações do Gestor</th>
+                        <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Documentos</th>
+                    </tr>
+                </thead>
+<tbody>
+    {% for item in lista_equipe %}
+    <tr class="hover:bg-gray-50 transition duration-150">
+        
+        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold">
+                    {{ item.funcionario.nome_completo|slice:":2"|upper }}
+                </div>
+                <div class="ml-3">
+                    <p class="text-gray-900 font-bold whitespace-no-wrap">
+                        {{ item.funcionario.nome_completo }}
+                    </p>
+                    <p class="text-gray-500 text-xs">
+                        {{ item.funcionario.cargo.titulo }}
+                    </p>
+                </div>
+            </div>
+        </td>
+
+        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">
+            {% if item.status_gestor %}
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                    Processo Concluído
+                </span>
+            {% elif item.status_func %}
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                    Aguardando sua Assinatura
+                </span>
+            {% else %}
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                    Pendente Funcionário
+                </span>
+            {% endif %}
+        </td>
+
+        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">
+            <div class="flex flex-col gap-2 items-center">
+                
+                <a href="{% url 'gerar_pdf_ponto' %}?mes={{ item.mes }}&ano={{ item.ano }}&funcionario_id={{ item.funcionario.id }}" 
+                   target="_blank"
+                   class="text-blue-600 hover:text-blue-900 font-bold text-xs border border-blue-600 px-2 py-1 rounded w-full flex items-center justify-center gap-1">
+                    📄 Ver Espelho
+                </a>
+                
+                {% if item.arquivo_assinado_url %}
+                    <a href="{{ item.arquivo_assinado_url }}" 
+                       download="{{ item.nome_download }}"
+                       class="text-green-600 hover:text-green-900 font-bold text-xs border border-green-600 px-2 py-1 rounded w-full flex items-center justify-center gap-1">
+                       ✅ Baixar Assinado
+                    </a>
+                {% endif %}
+
+{% if item.pode_assinar %}
+    <button type="button" 
+        onclick="abrirModalGestor(
+            {{ item.funcionario.id }}, 
+            '{{ item.funcionario.nome_completo }}', 
+            {{ item.mes }}, 
+            {{ item.ano }}, 
+            '{{ item.arquivo_assinado_url|default:'None' }}'
+        )"
+        class="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs py-1 px-3 rounded shadow w-full flex items-center justify-center gap-1 transition duration-150">
+        🖋 Assinar Folha
+    </button>
+{% endif %}
+                   
+
+                <a href="{% url 'historico_funcionario' item.funcionario.id %}" class="text-gray-600 hover:text-gray-900 text-xs underline mt-1">
+                    Histórico
+                </a>
+            </div>
+        </td>
+    </tr>
+    {% empty %}
+    {% endfor %}
+</tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="modal-gestor" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-orange-100">
+                    <svg class="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                </div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mt-4" id="modal-title">Assinar Ponto</h3>
+                <div class="mt-2 px-2 py-3">
+                    <p class="text-sm text-gray-500 mb-4">
+                        Baixe o arquivo assinado pelo colaborador, assine digitalmente (Gov.br) e envie a versão final.
+                    </p>
+                    
+                    <div class="mb-4 text-left bg-gray-50 p-3 rounded">
+                        <p class="text-xs font-bold text-gray-700 uppercase mb-1">Passo 1: Baixar Arquivo</p>
+                        <a id="btn-download-colaborador" href="#" download class="text-blue-600 hover:underline text-sm flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Download PDF (Colaborador)
+                        </a>
+                    </div>
+
+                    <div class="mb-4 text-left">
+                        <p class="text-xs font-bold text-gray-700 uppercase mb-1">Passo 2: Assinar</p>
+                        <a href="https://assinador.iti.br" target="_blank" class="text-blue-600 underline font-bold text-sm">Ir para Assinador Gov.br</a>
+                    </div>
+
+                    <form id="form-assinar-gestor" action="#" method="post" enctype="multipart/form-data" class="mt-4 text-left">
+                        {% csrf_token %}
+                        <p class="text-xs font-bold text-gray-700 uppercase mb-1">Passo 3: Enviar Final</p>
+                        <input type="file" name="arquivo_gestor" accept=".pdf, .p7s" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                        
+                        <button type="submit" class="mt-4 w-full px-4 py-2 bg-green-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-green-700 focus:outline-none">
+                            Confirmar Assinatura
+                        </button>
+                    </form>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button onclick="document.getElementById('modal-gestor').classList.add('hidden')" class="px-4 py-2 bg-gray-200 text-gray-800 w-full rounded hover:bg-gray-300">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function abrirModalGestor(funcId, nome, mes, ano, urlArquivoColaborador) {
+            // Atualiza Título
+            document.getElementById('modal-title').innerText = 'Assinar: ' + nome;
+            
+            // Atualiza Link de Download (Passo 1)
+            const btnDownload = document.getElementById('btn-download-colaborador');
+            if (urlArquivoColaborador && urlArquivoColaborador !== 'None') {
+                btnDownload.href = urlArquivoColaborador;
+                btnDownload.classList.remove('pointer-events-none', 'text-gray-400');
+                btnDownload.classList.add('text-blue-600');
+                btnDownload.innerHTML = `<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Baixar PDF Assinado por ${nome}`;
+            } else {
+                btnDownload.href = '#';
+                btnDownload.classList.add('pointer-events-none', 'text-gray-400');
+                btnDownload.classList.remove('text-blue-600');
+                btnDownload.innerText = 'Arquivo do colaborador não disponível';
+            }
+
+            // Atualiza Action do Form (Passo 3)
+            // URL Pattern: /equipe/assinar/ID/MES/ANO/
+            const baseUrl = "{% url 'assinar_ponto_gestor' 0 0 0 %}".replace('0/0/0/', ''); 
+            // Truque simples pra montar a URL no JS:
+            const actionUrl = `/equipe/assinar/${funcId}/${mes}/${ano}/`;
+            document.getElementById('form-assinar-gestor').action = actionUrl;
+
+            // Mostra Modal
+            document.getElementById('modal-gestor').classList.remove('hidden');
+        }
+    </script>
+    
+</body>
+</html>

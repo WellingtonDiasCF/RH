@@ -1,0 +1,21 @@
+# Django
+*.log
+*.pot
+*.pyc
+__pycache__/
+local_settings.py
+db.sqlite3
+media/
+
+# Ambiente Virtual (NUNCA ENVIE ISSO)
+venv/
+env/
+.env
+
+# Windows/Mac
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
