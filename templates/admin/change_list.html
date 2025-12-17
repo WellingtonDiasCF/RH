@@ -38,41 +38,56 @@
         
         <div class="tab-pane fade show active" id="content-admin">
             
-            <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded-4 shadow-sm border border-light">
+            <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded-4 shadow-sm border border-light flex-wrap gap-3">
                 
-                <div class="search-wrapper w-100" style="max-width: 450px;">
-                    {% if cl.search_fields %}
-                    <form id="changelist-search" action="" method="get" class="m-0 position-relative">
-                        <i class="fas fa-search position-absolute text-muted" style="left: 20px; top: 50%; transform: translateY(-50%);"></i>
-                        
-                        {% for pair in cl.params.items %}
-                            {% if pair.0 != 'q' %}<input type="hidden" name="{{ pair.0 }}" value="{{ pair.1 }}">{% endif %}
-                        {% endfor %}
+                <div class="d-flex align-items-center gap-2 flex-grow-1">
+                    
+                    <div class="search-wrapper" style="min-width: 300px; max-width: 450px; flex-grow: 1;">
+                        {% if cl.search_fields %}
+                        <form id="changelist-search" action="" method="get" class="m-0 position-relative">
+                            <i class="fas fa-search position-absolute text-muted" style="left: 20px; top: 50%; transform: translateY(-50%);"></i>
+                            {% for pair in cl.params.items %}
+                                {% if pair.0 != 'q' %}<input type="hidden" name="{{ pair.0 }}" value="{{ pair.1 }}">{% endif %}
+                            {% endfor %}
+                            <input type="text" 
+                                   name="q" 
+                                   value="{{ cl.query }}" 
+                                   class="form-control rounded-pill border-0 bg-light ps-5 py-2 shadow-inner instant-search-admin" 
+                                   placeholder="Pesquisar..." 
+                                   style="height: 45px;"
+                                   autocomplete="off">
+                        </form>
+                        {% endif %}
+                    </div>
 
-                        <input type="text" 
-                               name="q" 
-                               value="{{ cl.query }}" 
-                               class="form-control rounded-pill border-0 bg-light ps-5 py-2 shadow-inner instant-search-admin" 
-                               placeholder="Pesquisar registro..." 
-                               style="height: 45px;"
-                               autocomplete="off">
-                    </form>
+                    {% if cl.opts.model_name == 'funcionario' %}
+                        <div class="shadow-sm" style="width: 130px;">
+                            <select id="admin-filtro-estado" class="form-select rounded-pill border-0 bg-light" onchange="atualizarFiltroAdmin()" style="height: 45px;">
+                                <option value="">UF (Todas)</option>
+                                {% for est in filter_estados %}
+                                    <option value="{{ est }}">{{ est }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="shadow-sm" style="min-width: 200px;">
+                            <select id="admin-filtro-equipe" class="form-select rounded-pill border-0 bg-light" onchange="aplicarFiltrosAdmin()" style="height: 45px;">
+                                <option value="">Equipes (Todas)</option>
+                                {% for eq in filter_equipes %}
+                                    <option value="{{ eq.id }}">{{ eq.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     {% endif %}
                 </div>
 
                 <div class="d-flex gap-2">
-                    {% if cl.has_filters %}
-                    <button class="btn btn-white rounded-pill px-4 fw-bold border d-flex align-items-center" 
-                            type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasFilters" style="height: 45px;">
-                        <i class="fas fa-filter text-primary me-2"></i> Filtros
-                    </button>
-                    {% endif %}
-                    
                     <a href="add/" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center" 
                        style="background: #FF6600; border:none; height: 45px; text-decoration: none; color: white;">
                         <i class="fas fa-plus me-2"></i> Novo
                     </a>
                 </div>
+
             </div>
 
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
@@ -161,170 +176,48 @@
     </div>
 </div>
 
-{% if cl.has_filters %}
-<div class="offcanvas offcanvas-end" id="offcanvasFilters">
-    <div class="offcanvas-header bg-light border-bottom">
-        <h5 class="offcanvas-title fw-bold">Filtros</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
-    </div>
-    <div class="offcanvas-body">
-        <div id="changelist-filter" class="p-3">
-            {% for spec in cl.filter_specs %}
-                <div class="filter-section mb-4">
-                    <h6 class="fw-bold text-uppercase text-secondary small mb-2">{{ spec.title }}</h6>
-                    <div class="django-filter-content">
-                        {% admin_list_filter cl spec %}
-                    </div>
-                </div>
-            {% endfor %}
-            <div class="mt-4">
-                <a href="?" class="btn btn-outline-danger w-100 rounded-pill fw-bold">Limpar Todos</a>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
 <style>
-    /* 1. REMOVER "2 FUNCIONÁRIOS" (TÉCNICA FONT-SIZE 0) */
-    /* Isso esconde qualquer texto solto, mas permite restaurar elementos filhos */
-    .table-footer-clean, 
-    .paginator-wrapper,
-    .paginator {
-        font-size: 0 !important; 
-        line-height: 0;
-        color: transparent;
-    }
-    
-    /* Restaura a visibilidade APENAS dos botões e números de página */
-    .paginator a, 
-    .paginator span.this-page {
-        font-size: 0.85rem !important; /* Tamanho normal */
-        line-height: normal;
-        color: #333 !important;
-        display: inline-block;
-        padding: 6px 12px;
-        border-radius: 6px;
-        margin-left: 5px;
-        text-decoration: none;
-        font-weight: bold;
-        background: white;
-        border: 1px solid #ddd;
-    }
-    
-    /* Hover e Ativo */
+    /* Estilos do Admin */
+    .table-footer-clean, .paginator-wrapper, .paginator { font-size: 0 !important; line-height: 0; color: transparent; }
+    .paginator a, .paginator span.this-page { font-size: 0.85rem !important; line-height: normal; color: #333 !important; display: inline-block; padding: 6px 12px; border-radius: 6px; margin-left: 5px; text-decoration: none; font-weight: bold; background: white; border: 1px solid #ddd; }
     .paginator a:hover { border-color: #FF6600; color: #FF6600 !important; }
     .paginator span.this-page { background: #FF6600; color: white !important; border-color: #FF6600; }
-
-    /* Esconde spans estatísticos (Total, Show all) */
     .paginator .small, .paginator .quiet { display: none !important; }
-
-
-    /* 2. CORREÇÃO DOS FILTROS (FORÇAR VISIBILIDADE) */
-    /* Remove estilos de lista padrão */
-    .django-filter-content ul {
-        list-style: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-    
-    .django-filter-content li {
-        margin-bottom: 5px !important;
-        display: block !important;
-    }
-
-    /* Estilo dos Links dos Filtros */
-    .django-filter-content li a {
-        display: block !important;
-        padding: 8px 12px !important;
-        background-color: #f8f9fa !important;
-        border: 1px solid #eee !important;
-        border-radius: 6px !important;
-        
-        /* OBRIGATÓRIO: Força a cor do texto para ser legível */
-        color: #333 !important; 
-        font-size: 0.9rem !important;
-        text-decoration: none !important;
-        font-weight: 500 !important;
-    }
-
-    .django-filter-content li a:hover {
-        background-color: #e9ecef !important;
-        border-color: #ccc !important;
-    }
-
-    /* Item selecionado */
-    .django-filter-content li.selected a {
-        background-color: #FFF3E0 !important;
-        color: #FF6600 !important;
-        border-color: #FF6600 !important;
-        font-weight: bold !important;
-    }
-
-    /* Se por acaso for um Select (Dropdown) */
-    .django-filter-content select {
-        width: 100% !important;
-        padding: 8px !important;
-        border: 1px solid #ccc !important;
-        border-radius: 6px !important;
-        background-color: white !important;
-        color: #333 !important;
-    }
-
-
-    /* 3. ESTILOS GERAIS */
     .rh-page-container { padding: 30px; max-width: 1600px; margin: 0 auto; overflow: visible !important; }
     .custom-nav .nav-link.active { background-color: #FF6600 !important; color: white !important; }
     .custom-nav .nav-link { color: #555; transition: all 0.3s; }
-    
     .custom-table { border-collapse: separate; border-spacing: 0; width: 100%; }
     .custom-table thead th { border-bottom: 1px solid #eee; border-top: none; white-space: nowrap; }
     .custom-table tbody td { border-bottom: 1px solid #f9f9f9; vertical-align: middle; padding: 15px 10px; }
     .hover-row:hover td { background-color: #FFF7ED !important; }
-    
     .avatar-circle { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1rem; }
     .btn-icon:hover { background-color: #FF6600; color: white !important; }
     .action-checkbox, .action-checkbox-column, .actions, #action-toggle { display: none !important; }
 </style>
 
 <script>
+    // --- LÓGICA DO PAINEL DE PONTO (ABA 2) ---
     window.currentRhMode = "{% if cl.opts.model_name == 'equipe' %}summary{% else %}list{% endif %}";
     function setRhMode(mode) { window.currentRhMode = mode; }
+    
+    // Função principal de filtragem da aba GESTÃO DE PONTO
+    window.filtrarGestaoPonto = function(mes, ano) {
+        const elEstado = document.getElementById('rh-filtro-estado');
+        const elEquipe = document.getElementById('rh-filtro-equipe');
+        const elSearch = document.getElementById('rh-search-input');
+        
+        const estado = elEstado ? elEstado.value : '';
+        const equipe = elEquipe ? elEquipe.value : '';
+        const query = elSearch ? elSearch.value : '';
 
-    // PESQUISA ADMIN
-    let searchTimeout = null;
-    const adminSearchInput = document.querySelector('.instant-search-admin');
-    const adminSearchForm = document.getElementById('changelist-search');
-    if (adminSearchInput && adminSearchForm) {
-        adminSearchInput.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => { adminSearchForm.submit(); }, 1000);
-        });
-        if (adminSearchInput.value.length > 0) {
-            adminSearchInput.focus();
-            const val = adminSearchInput.value;
-            adminSearchInput.value = '';
-            adminSearchInput.value = val;
-        }
-    }
+        let url = `{% url 'admin_gestor_partial' %}?mode=${window.currentRhMode}&mes=${mes}&ano=${ano}`;
+        if(estado) url += `&estado=${encodeURIComponent(estado)}`;
+        if(equipe) url += `&equipe_id=${encodeURIComponent(equipe)}`;
+        if(query) url += `&q=${encodeURIComponent(query)}`;
 
-    // PESQUISA PONTO (AJAX)
-    document.addEventListener('input', function(e) {
-        if (e.target.closest('#rh-panel-container') && e.target.tagName === 'INPUT') {
-            clearTimeout(searchTimeout);
-            const query = e.target.value;
-            searchTimeout = setTimeout(() => {
-                let url = `{% url 'admin_gestor_partial' %}?mode=${window.currentRhMode}&q=${encodeURIComponent(query)}`;
-                const mesInput = document.querySelector('input[name="mes_atual"]');
-                const anoInput = document.querySelector('input[name="ano_atual"]');
-                if(mesInput) url += `&mes=${mesInput.value}`;
-                if(anoInput) url += `&ano=${anoInput.value}`;
-                triggerPainelRH(url);
-            }, 600);
-        }
-    });
+        triggerPainelRH(url);
+    };
 
-    // AJAX + DATA
     function carregarPainelRH(urlOrMode) {
         const c = document.getElementById('rh-panel-container');
         const baseUrl = "{% url 'admin_gestor_partial' %}";
@@ -332,23 +225,76 @@
         if (urlOrMode === 'list' || urlOrMode === 'summary') finalUrl = `${baseUrl}?mode=${urlOrMode}`;
         else if (urlOrMode.startsWith('?')) finalUrl = `${baseUrl}${urlOrMode}`;
         else finalUrl = urlOrMode;
+        
         c.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>';
         fetch(finalUrl).then(r => r.text()).then(html => { c.innerHTML = html; });
     }
     window.triggerPainelRH = carregarPainelRH;
 
-    document.addEventListener('click', function(e) {
-        const link = e.target.closest('#rh-panel-container a');
-        if (link) {
-            const href = link.getAttribute('href');
-            if(href && (href.startsWith('?') || href.includes('mes=') || href.includes('p='))) {
-                e.preventDefault();
-                carregarPainelRH(href);
+
+    // --- LÓGICA DA ABA ADMINISTRAÇÃO ---
+    const MAPA_EQUIPES = {{ json_mapa_equipes|default:"{}"|safe }};
+
+    function atualizarFiltroAdmin() {
+        const selEstado = document.getElementById('admin-filtro-estado');
+        const selEquipe = document.getElementById('admin-filtro-equipe');
+        if(!selEstado || !selEquipe) return;
+
+        const estado = selEstado.value;
+        const equipesPermitidas = MAPA_EQUIPES[estado] || [];
+        
+        for (let i = 0; i < selEquipe.options.length; i++) {
+            const opt = selEquipe.options[i];
+            if (opt.value === "") continue;
+            
+            if (estado && !equipesPermitidas.includes(parseInt(opt.value))) {
+                opt.style.display = 'none';
+            } else {
+                opt.style.display = 'block';
             }
         }
-    });
+        
+        if (estado && selEquipe.value && !equipesPermitidas.includes(parseInt(selEquipe.value))) {
+            selEquipe.value = "";
+        }
+
+        aplicarFiltrosAdmin();
+    }
+
+    function aplicarFiltrosAdmin() {
+        const selEstado = document.getElementById('admin-filtro-estado');
+        const selEquipe = document.getElementById('admin-filtro-equipe');
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        if (selEstado.value) urlParams.set('local_trabalho_estado__exact', selEstado.value);
+        else urlParams.delete('local_trabalho_estado__exact');
+        
+        if (selEquipe.value) urlParams.set('equipe__id__exact', selEquipe.value);
+        else urlParams.delete('equipe__id__exact');
+        
+        window.location.search = urlParams.toString();
+    }
 
     document.addEventListener("DOMContentLoaded", function() {
+        const params = new URLSearchParams(window.location.search);
+        const st = params.get('local_trabalho_estado__exact');
+        const eq = params.get('equipe__id__exact');
+        
+        const selEstado = document.getElementById('admin-filtro-estado');
+        const selEquipe = document.getElementById('admin-filtro-equipe');
+        
+        if(selEstado && st) {
+            selEstado.value = st;
+            const equipesPermitidas = MAPA_EQUIPES[st] || [];
+            for (let i = 0; i < selEquipe.options.length; i++) {
+                const opt = selEquipe.options[i];
+                if (opt.value === "") continue;
+                if (!equipesPermitidas.includes(parseInt(opt.value))) opt.style.display = 'none';
+            }
+        }
+        if(selEquipe && eq) selEquipe.value = eq;
+
         const activeTab = localStorage.getItem('activeAdminTab');
         if (activeTab) {
             const tabBtn = document.querySelector(`button[data-bs-target="${activeTab}"]`);

@@ -1,11 +1,11 @@
+import json
 from django.contrib import admin
 from django.contrib.auth.models import User, Group
 from django.utils.html import format_html
 from django import forms
 from .models import Funcionario, RegistroPonto, Cargo, Equipe
 
-
-# --- FORMULÁRIO PERSONALIZADO (Mantido Original) ---
+# --- FORMULÁRIO PERSONALIZADO ---
 class FuncionarioAdminForm(forms.ModelForm):
     username = forms.CharField(label="Usuário (Login/CPF)", required=True)
     email = forms.EmailField(label="E-mail", required=True)
@@ -29,16 +29,13 @@ class FuncionarioAdminForm(forms.ModelForm):
 class FuncionarioAdmin(admin.ModelAdmin):
     form = FuncionarioAdminForm
     
-    # Colunas da Tabela
     list_display = ('nome_completo', 'cargo', 'equipe', 'get_local_trabalho')
     
-    # --- AJUSTE CRÍTICO PARA OS FILTROS FUNCIONAREM ---
-    # Removi nome e email daqui (usar na busca). Deixei só categorias.
-    list_filter = ('equipe', 'cargo', 'local_trabalho_estado') 
+    # Mantemos os filtros aqui para o Django aceitar os parâmetros na URL,
+    # mas vamos escondê-los visualmente no template se desejar, pois usaremos os dropdowns no topo.
+    list_filter = ('local_trabalho_estado', 'equipe', 'cargo') 
     
-    # Barra de Pesquisa
     search_fields = ('nome_completo', 'cpf', 'usuario__username', 'email')
-    
     filter_horizontal = ('outras_equipes',)
     
     class Media:
@@ -61,8 +58,36 @@ class FuncionarioAdmin(admin.ModelAdmin):
     get_local_trabalho.short_description = 'Local de Trabalho'
     get_local_trabalho.admin_order_field = 'equipe__local_trabalho'
 
-    # Lógica original de salvar usuário (Mantida)
+    # --- INJEÇÃO DE DADOS PARA OS FILTROS DO TOPO ---
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        
+        # 1. Busca estados disponíveis
+        estados = Funcionario.objects.exclude(local_trabalho_estado__isnull=True)\
+                                     .exclude(local_trabalho_estado='')\
+                                     .values_list('local_trabalho_estado', flat=True)\
+                                     .distinct().order_by('local_trabalho_estado')
+        
+        # 2. Cria mapeamento { 'SP': [id1, id2], 'MG': [id3] } para o JS filtrar
+        mapa_estado_equipe = {}
+        for est in estados:
+            ids = Funcionario.objects.filter(local_trabalho_estado=est)\
+                                     .exclude(equipe__isnull=True)\
+                                     .values_list('equipe_id', flat=True)\
+                                     .distinct()
+            mapa_estado_equipe[est] = list(ids)
+
+        # 3. Busca todas as equipes para popular o combo inicial
+        todas_equipes = list(Equipe.objects.values('id', 'nome').order_by('nome'))
+
+        extra_context['filter_estados'] = list(estados)
+        extra_context['filter_equipes'] = todas_equipes
+        extra_context['json_mapa_equipes'] = json.dumps(mapa_estado_equipe)
+        
+        return super().changelist_view(request, extra_context=extra_context)
+
     def save_model(self, request, obj, form, change):
+        # (Lógica original de salvar usuário mantida)
         username = form.cleaned_data['username']
         email = form.cleaned_data['email']
         password = form.cleaned_data['password']
@@ -97,7 +122,6 @@ class FuncionarioAdmin(admin.ModelAdmin):
 class EquipeAdmin(admin.ModelAdmin):
     list_display = ('nome', 'local_trabalho', 'listar_gestores')
     search_fields = ('nome', 'local_trabalho')
-    # Adicionado para ter filtro na aba Equipes
     list_filter = ('local_trabalho',) 
     filter_horizontal = ('gestores',)
 
@@ -111,7 +135,7 @@ class RegistroPontoAdmin(admin.ModelAdmin):
     list_display = ('funcionario', 'data', 'entrada_manha', 'saida_tarde', 'status_assinaturas')
     list_filter = ('data', 'funcionario__equipe', 'assinado_funcionario', 'assinado_gestor')
     search_fields = ('funcionario__nome_completo',)
-    date_hierarchy = 'data' # Navegação por data no topo
+    date_hierarchy = 'data'
     
     def status_assinaturas(self, obj):
         func = "✅" if obj.assinado_funcionario else "❌"
@@ -131,3 +155,8 @@ try:
     admin.site.unregister(Group)
 except admin.sites.NotRegistered:
     pass
+# admin.py (Exemplo do que PODE estar causando erro se foi modificado)
+def response_add(self, request, obj, post_url_continue=None):
+    # Se você sobrescreveu isso e não tratou o popup, ele trava.
+    # O ideal é não sobrescrever a menos que necessário.
+    return super().response_add(request, obj, post_url_continue)

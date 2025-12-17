@@ -188,8 +188,7 @@
                     <span class="d-block fw-bold text-dark small text-truncate" style="max-width: 120px;">
                         {{ request.user.get_full_name|default:request.user.username }}
                     </span>
-                    <a href="{% url 'admin:logout' %}" class="text-danger small text-decoration-none fw-bold" style="font-size: 0.75rem;">
-                        <i class="fas fa-sign-out-alt me-1"></i> Sair
+
                     </a>
                 </div>
             </div>

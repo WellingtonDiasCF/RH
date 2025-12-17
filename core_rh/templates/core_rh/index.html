@@ -136,14 +136,6 @@
         </a>
         {% endif %}
 
-        {% if can_access_rh_area %}
-        <a href="{% url 'rh_summary' %}" class="card">
-            <i class="fa-solid fa-file-signature card-icon"></i>
-            <span class="card-title">Área RH</span>
-            <span class="card-desc">Visão geral e download de folhas</span>
-        </a>
-        {% endif %}
-
         {% if is_gestor %}
         <a href="{% url 'area_gestor' %}" class="card">
             <i class="fa-solid fa-users card-icon"></i>

@@ -870,6 +870,7 @@ def rh_batch_download_view(request, equipe_id):
 def rh_unlock_timesheet_view(request, func_id, mes, ano):
     if not usuario_eh_rh(request.user):
         return HttpResponse("Acesso negado. Perfil RH necessário.", status=403)
+        
     funcionario = get_object_or_404(Funcionario, id=func_id)
     data_inicio, data_fim = get_datas_competencia(mes, ano)
 
@@ -884,7 +885,9 @@ def rh_unlock_timesheet_view(request, func_id, mes, ano):
     else:
         messages.error(request, "Nenhum registro encontrado para desbloquear.")
 
-    return redirect('rh_team_detail', equipe_id=funcionario.equipe.id)
+    # ALTERAÇÃO: Redireciona para a página de onde veio (HTTP_REFERER)
+    # Isso permite que funcione tanto dentro do Admin quanto no Painel de RH sem mudar de tela.
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
 @login_required
 def trocar_senha_obrigatoria(request):
@@ -1003,24 +1006,30 @@ def admin_ponto_partial_view(request, func_id):
 
 @login_required
 def admin_gestor_partial_view(request):
+    """
+    View parcial do painel de RH (renderizada via AJAX).
+    Gerencia tanto o Modo Lista (Funcionários) quanto o Modo Resumo (Equipes).
+    """
     if not usuario_eh_rh(request.user):
         return HttpResponse('<div class="alert alert-danger">Acesso Negado.</div>', status=403)
 
-    # 1. Parâmetros (Adicionado 'q' para busca)
+    # 1. Parâmetros
     mes_real, ano_real = get_competencia_atual()
     try:
         mes = int(request.GET.get('mes', mes_real))
         ano = int(request.GET.get('ano', ano_real))
         mode = request.GET.get('mode', 'list')
         equipe_id = request.GET.get('equipe_id', '')
-        q = request.GET.get('q', '').strip() # TERMO DE BUSCA
+        estado_filtro = request.GET.get('estado', '') # Filtro de UF
+        q = request.GET.get('q', '').strip() # Busca
     except ValueError:
         mes, ano = mes_real, ano_real
         mode = 'list'
         equipe_id = ''
+        estado_filtro = ''
         q = ''
 
-    # 2. Navegação
+    # 2. Navegação de Datas
     mes_ant, ano_ant = get_competencia_anterior(mes, ano)
     if mes == 12: mes_prox, ano_prox = 1, ano + 1
     else: mes_prox, ano_prox = mes + 1, ano
@@ -1036,14 +1045,16 @@ def admin_gestor_partial_view(request):
         'nav_anterior': nav_anterior,
         'nav_proximo': nav_proximo,
         'mode': mode,
-        'q': q, # Passa a busca de volta para o template
+        'q': q,
+        'equipe_id': equipe_id,
+        'estado_filtro': estado_filtro,
     }
 
-    # --- MODO RESUMO (EQUIPES) ---
+    # --- MODO RESUMO (CARDS DAS EQUIPES) ---
     if mode == 'summary':
         todas_equipes = Equipe.objects.all().order_by('nome')
         
-        # FILTRO DE BUSCA (Por Nome da Equipe)
+        # Filtro de Busca (Nome da Equipe)
         if q:
             todas_equipes = todas_equipes.filter(nome__icontains=q)
 
@@ -1065,30 +1076,34 @@ def admin_gestor_partial_view(request):
             })
         context['resumo_rh'] = resumo_rh
 
-    # --- MODO LISTA (FUNCIONÁRIOS) ---
+    # --- MODO LISTA (TABELA DE FUNCIONÁRIOS) ---
     else:
         funcionarios_query = Funcionario.objects.filter(usuario__is_active=True)
         
-        # Filtro de Equipe
+        # 1. Filtro de Estado (UF)
+        if estado_filtro:
+            funcionarios_query = funcionarios_query.filter(local_trabalho_estado=estado_filtro)
+
+        # 2. Filtro de Equipe
         if equipe_id:
             try:
                 eq = Equipe.objects.get(id=equipe_id)
                 funcionarios_query = funcionarios_query.filter(Q(equipe=eq) | Q(outras_equipes=eq))
             except: pass
         
-        # FILTRO DE BUSCA (Por Nome do Funcionário)
+        # 3. Busca Texto (Nome do Funcionário)
         if q:
             funcionarios_query = funcionarios_query.filter(nome_completo__icontains=q)
             
-        funcionarios = funcionarios_query.order_by('nome_completo')
-        lista_colaboradores = []
+        funcionarios = funcionarios_query.distinct().order_by('nome_completo')
         
+        # Dados da Tabela
+        lista_colaboradores = []
         for func in funcionarios:
             pontos = RegistroPonto.objects.filter(funcionario=func, data__range=[data_inicio, data_fim])
             
             status_func = pontos.filter(assinado_funcionario=True).exists()
             status_gestor = pontos.filter(assinado_gestor=True).exists()
-            
             reg_anexo = pontos.exclude(arquivo_anexo='').first()
             url_anexo = reg_anexo.arquivo_anexo.url if reg_anexo and reg_anexo.arquivo_anexo else None
             
@@ -1103,7 +1118,21 @@ def admin_gestor_partial_view(request):
             })
             
         context['lista_colaboradores'] = lista_colaboradores
-        context['todas_equipes'] = Equipe.objects.all().order_by('nome')
-        context['equipe_id'] = equipe_id
+
+        # --- DADOS PARA OS DROPDOWNS (FILTROS) ---
+        # A. Estados Disponíveis
+        context['estados_disponiveis'] = Funcionario.objects.exclude(local_trabalho_estado__isnull=True)\
+                                            .exclude(local_trabalho_estado='')\
+                                            .values_list('local_trabalho_estado', flat=True)\
+                                            .distinct().order_by('local_trabalho_estado')
+
+        # B. Equipes (Filtradas pelo Estado selecionado)
+        equipes_qs = Equipe.objects.all().order_by('nome')
+        if estado_filtro:
+            ids_equipes_estado = Funcionario.objects.filter(local_trabalho_estado=estado_filtro)\
+                                    .values_list('equipe_id', flat=True).distinct()
+            equipes_qs = equipes_qs.filter(id__in=ids_equipes_estado)
+            
+        context['todas_equipes'] = equipes_qs
 
     return render(request, 'core_rh/includes/rh_area_moderno.html', context)
