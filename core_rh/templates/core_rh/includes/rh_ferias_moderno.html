@@ -1,0 +1,140 @@
+<div class="rh-panel-wrapper fade-in-up">
+    
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom gap-3 bg-white p-3 rounded-4 shadow-sm">
+        
+        <div class="d-flex align-items-center bg-light border rounded-pill p-1">
+            <button onclick="filtrarAdminFerias({{ nav_anterior.mes }}, {{ nav_anterior.ano }})" 
+               class="btn btn-sm btn-white rounded-circle shadow-sm" style="width:32px; height:32px;">
+               <i class="fas fa-chevron-left text-secondary small"></i>
+            </button>
+            <div class="px-3 text-center fw-bold text-dark" style="min-width: 140px; font-size: 0.9rem;">
+                <i class="far fa-calendar-alt me-2 text-warning"></i>{{ nome_mes }}
+            </div>
+            <button onclick="filtrarAdminFerias({{ nav_proximo.mes }}, {{ nav_proximo.ano }})" 
+               class="btn btn-sm btn-white rounded-circle shadow-sm" style="width:32px; height:32px;">
+               <i class="fas fa-chevron-right text-secondary small"></i>
+            </button>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center flex-grow-1 justify-content-end flex-wrap">
+            
+            <div class="shadow-sm" style="min-width: 150px;">
+                <select id="ferias-filtro-status" class="form-select rounded-pill border-0 bg-light" 
+                        onchange="filtrarAdminFerias({{ mes_atual }}, {{ ano_atual }})">
+                    <option value="">Status: Todos</option>
+                    <option value="Pendente" {% if status_filtro == 'Pendente' %}selected{% endif %}>Pendente</option>
+                    <option value="Enviado" {% if status_filtro == 'Enviado' %}selected{% endif %}>Enviado ao RH</option>
+                    <option value="Concluido" {% if status_filtro == 'Concluido' %}selected{% endif %}>Concluído</option>
+                </select>
+            </div>
+
+            <div class="input-group shadow-sm" style="max-width: 300px;">
+                <input type="text" id="ferias-search-input" class="form-control border-end-0 ps-3 bg-white" placeholder="Buscar funcionário..." 
+                       value="{{ q }}" 
+                       onkeydown="if(event.key === 'Enter') filtrarAdminFerias({{ mes_atual }}, {{ ano_atual }})"
+                       style="border-top-left-radius: 50px; border-bottom-left-radius: 50px;">
+                <button class="btn btn-white border-start-0 text-primary pe-3 bg-white" 
+                        onclick="filtrarAdminFerias({{ mes_atual }}, {{ ano_atual }})"
+                        style="border-top-right-radius: 50px; border-bottom-right-radius: 50px;">
+                        <i class="fas fa-search"></i>
+                </button>
+            </div>
+
+            <a href="{% url 'admin:core_rh_ferias_add' %}" class="btn btn-warning text-white rounded-pill px-4 fw-bold shadow-sm" style="background-color: #ffc107; border:none;">
+                <i class="fas fa-plus me-2"></i> Agendar
+            </a>
+
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0 table-hover">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4 py-3 text-secondary text-uppercase text-xs fw-bold">Funcionário</th>
+                        <th class="text-center py-3 text-secondary text-uppercase text-xs fw-bold">Período Aquisitivo</th>
+                        <th class="text-center py-3 text-secondary text-uppercase text-xs fw-bold">Datas de Gozo</th>
+                        <th class="text-center py-3 text-secondary text-uppercase text-xs fw-bold">Status</th>
+                        <th class="text-end pe-4 py-3 text-secondary text-uppercase text-xs fw-bold">Documentos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in lista_ferias %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex flex-column">
+                                <a href="{% url 'admin:core_rh_ferias_change' item.id %}" class="fw-bold text-dark text-decoration-none hover-orange">
+                                    {{ item.funcionario.nome_completo }}
+                                </a>
+                                <span class="small text-muted">
+                                    {{ item.funcionario.equipe.nome|default:"-" }}
+                                </span>
+                            </div>
+                        </td>
+                        
+                        <td class="text-center text-muted fw-bold">
+                            {{ item.periodo_aquisitivo }}
+                        </td>
+                        
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark border px-3 py-2 rounded-pill">
+                                <i class="far fa-calendar me-1"></i> {{ item.data_inicio|date:"d/m" }} até {{ item.data_fim|date:"d/m/Y" }}
+                            </span>
+                        </td>
+                        
+                        <td class="text-center">
+                            {% if item.status == 'Concluido' %}
+                                <span class="badge bg-success-subtle text-success border border-success rounded-pill px-3">Concluído</span>
+                            {% elif item.status == 'Enviado' %}
+                                <span class="badge bg-info-subtle text-info border border-info rounded-pill px-3">Enviado</span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning rounded-pill px-3">Pendente</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td class="text-end pe-4">
+                            <div class="d-flex gap-2 justify-content-end align-items-center">
+                                {% if item.arquivo_aviso %}
+                                    <a href="{{ item.arquivo_aviso.url }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-circle" title="Ver Aviso Original">
+                                        <i class="fas fa-file-alt"></i>
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'gerar_aviso_ferias_pdf' item.id %}" target="_blank" class="btn btn-sm btn-outline-secondary rounded-circle" title="Gerar PDF Aviso">
+                                        <i class="fas fa-print"></i>
+                                    </a>
+                                {% endif %}
+
+                                {% if item.aviso_assinado %}
+                                    <a href="{{ item.aviso_assinado.url }}" target="_blank" class="btn btn-sm btn-success rounded-circle shadow-sm" title="Aviso Assinado">
+                                        <i class="fas fa-check"></i>
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted opacity-25 px-2"><i class="fas fa-signature"></i></span>
+                                {% endif %}
+
+                                <div class="vr mx-1"></div>
+
+                                <a href="{% url 'admin:core_rh_ferias_change' item.id %}" class="btn btn-sm btn-light border rounded-pill fw-bold">
+                                    Editar
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center py-5 text-muted">
+                        <i class="fas fa-umbrella-beach fa-2x mb-3 opacity-25"></i><br>
+                        Nenhuma férias encontrada neste mês.
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-orange:hover { color: #FF6600 !important; }
+    .fade-in-up { animation: fadeInUp 0.4s ease-out; }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+</style>

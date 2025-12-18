@@ -25,6 +25,7 @@ from django.urls import reverse
 
 
 
+
 try:
     from weasyprint import HTML
 except ImportError:
@@ -127,23 +128,40 @@ def calcular_horas_trabalhadas(entrada_1_str, saida_1_str, entrada_2_str, saida_
 
 
 
+# Em core_rh/views.py
+
 @login_required 
 def home(request):
     is_gestor = False
+    tem_ferias = False # Padrão: Não mostra o card
+    
     try:
+        # Tenta pegar o funcionário vinculado ao usuário
         funcionario = Funcionario.objects.get(usuario=request.user)
         
+        # Verifica se é gestor
         if funcionario.equipes_lideradas.exists():
             is_gestor = True
-    except Funcionario.DoesNotExist: pass 
-    
-    can_access_rh_area = usuario_eh_rh(request.user)
+
+        # --- NOVA LÓGICA DE FÉRIAS ---
+        # Só mostra o card se existir pelo menos uma férias COM ARQUIVO de aviso
+        # (exclude(arquivo_aviso='') garante que o campo não está vazio)
+        try:
+            from .models import Ferias
+            if Ferias.objects.filter(funcionario=funcionario).exclude(arquivo_aviso='').exists():
+                tem_ferias = True
+        except ImportError:
+            pass
+            
+    except Funcionario.DoesNotExist: 
+        pass 
     
     can_access_rh_area = usuario_eh_rh(request.user)
     
     return render(request, 'core_rh/index.html', {
         'is_gestor': is_gestor or request.user.is_superuser, 
-        'can_access_rh_area': can_access_rh_area
+        'can_access_rh_area': can_access_rh_area,
+        'tem_ferias': tem_ferias, # Enviamos essa variável para o HTML
     })
 
 @login_required
@@ -1136,3 +1154,153 @@ def admin_gestor_partial_view(request):
         context['todas_equipes'] = equipes_qs
 
     return render(request, 'core_rh/includes/rh_area_moderno.html', context)
+# --- Certifique-se que isso está no final do core_rh/views.py ---
+try:
+    from .models import Ferias
+except ImportError:
+    pass
+
+@login_required
+def minhas_ferias_view(request):
+    try:
+        funcionario = Funcionario.objects.get(usuario=request.user)
+    except Funcionario.DoesNotExist:
+        return redirect('home')
+    
+    lista_ferias = Ferias.objects.filter(funcionario=funcionario).order_by('-data_inicio')
+    
+    return render(request, 'core_rh/ferias.html', {
+        'funcionario': funcionario,
+        'lista_ferias': lista_ferias
+    })
+
+@login_required
+def upload_ferias_view(request, ferias_id):
+    if request.method != 'POST': return redirect('minhas_ferias')
+    
+    ferias = get_object_or_404(Ferias, id=ferias_id, funcionario__usuario=request.user)
+    updated = False
+    
+    if request.FILES.get('aviso_file'):
+        ferias.aviso_assinado = request.FILES['aviso_file']
+        updated = True
+        
+    if request.FILES.get('recibo_file'):
+        ferias.recibo_assinado = request.FILES['recibo_file']
+        updated = True
+        
+    if updated:
+        if ferias.status == 'Pendente': ferias.status = 'Enviado'
+        ferias.save()
+        messages.success(request, "Arquivo enviado com sucesso!")
+        
+    return redirect('minhas_ferias')
+try:
+    from weasyprint import HTML, CSS
+except ImportError:
+    pass
+
+@login_required
+def gerar_aviso_ferias_pdf(request, ferias_id):
+    # Garante que é admin ou RH para gerar
+    if not request.user.is_staff:
+        return redirect('home')
+        
+    ferias = get_object_or_404(Ferias, id=ferias_id)
+    func = ferias.funcionario
+    
+    # Dados calculados
+    dias_ferias = (ferias.data_fim - ferias.data_inicio).days + 1
+    
+    # HTML do Documento (Estilizado para parecer o PDF enviado)
+    html_string = render_to_string('core_rh/pdf_aviso_ferias.html', {
+        'ferias': ferias,
+        'func': func,
+        'dias_ferias': dias_ferias,
+        'hoje': timezone.now()
+    })
+
+    # Gera o PDF
+    html = HTML(string=html_string)
+    pdf_file = html.write_pdf()
+
+    # Retorna para download/visualização
+    response = HttpResponse(pdf_file, content_type='application/pdf')
+    filename = f"Aviso_Ferias_{func.nome_completo.replace(' ', '_')}.pdf"
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
+
+    # --- ADICIONE NO FINAL DO ARQUIVO core_rh/views.py ---
+
+@login_required
+def admin_ferias_partial_view(request):
+    # Verifica permissão
+    if not (request.user.is_staff or request.user.is_superuser):
+        return HttpResponse("Acesso negado", status=403)
+
+    # Filtros Básicos
+    q = request.GET.get('q', '').strip()
+    status_filtro = request.GET.get('status', '')
+    mes = request.GET.get('mes')
+    ano = request.GET.get('ano')
+
+    # Data Base para Navegação (Padrão: Hoje)
+    hoje = timezone.now().date()
+    try:
+        ano = int(ano) if ano else hoje.year
+        mes = int(mes) if mes else hoje.month
+        data_base = date(ano, mes, 1)
+    except:
+        data_base = hoje
+
+    # Navegação Anterior/Próximo
+    mes_ant = data_base.month - 1 if data_base.month > 1 else 12
+    ano_ant = data_base.year if data_base.month > 1 else data_base.year - 1
+    
+    mes_prox = data_base.month + 1 if data_base.month < 12 else 1
+    ano_prox = data_base.year if data_base.month < 12 else data_base.year + 1
+
+    # QuerySet Inicial (Férias que cruzam o mês selecionado)
+    # Lógica: Início <= Fim do Mês E Fim >= Início do Mês
+    ultimo_dia_mes = monthrange(data_base.year, data_base.month)[1]
+    data_fim_mes = date(data_base.year, data_base.month, ultimo_dia_mes)
+    
+    # Importação lazy para evitar erro circular
+    from .models import Ferias, Funcionario
+    
+    ferias_qs = Ferias.objects.filter(
+        data_inicio__lte=data_fim_mes,
+        data_fim__gte=data_base
+    ).select_related('funcionario', 'funcionario__equipe')
+
+    # Filtro de Busca (Nome ou Matrícula)
+    if q:
+        ferias_qs = ferias_qs.filter(
+            Q(funcionario__nome_completo__icontains=q) | 
+            Q(funcionario__matricula__icontains=q)
+        )
+
+    # Filtro de Status
+    if status_filtro:
+        ferias_qs = ferias_qs.filter(status=status_filtro)
+
+    # Ordenação
+    ferias_qs = ferias_qs.order_by('data_inicio')
+
+    context = {
+        'lista_ferias': ferias_qs,
+        'mes_atual': data_base.month,
+        'ano_atual': data_base.year,
+        'nome_mes': data_base.strftime('%B').capitalize(), # Requer locale pt-br configurado ou array manual
+        'nav_anterior': {'mes': mes_ant, 'ano': ano_ant},
+        'nav_proximo': {'mes': mes_prox, 'ano': ano_prox},
+        'q': q,
+        'status_filtro': status_filtro,
+    }
+    
+    # Dicionário simples de meses para garantir PT-BR
+    meses = {1:'Janeiro', 2:'Fevereiro', 3:'Março', 4:'Abril', 5:'Maio', 6:'Junho', 
+             7:'Julho', 8:'Agosto', 9:'Setembro', 10:'Outubro', 11:'Novembro', 12:'Dezembro'}
+    context['nome_mes'] = f"{meses.get(data_base.month)} {data_base.year}"
+
+    return render(request, 'core_rh/includes/rh_ferias_moderno.html', context)

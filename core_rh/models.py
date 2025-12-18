@@ -45,6 +45,10 @@ class Funcionario(models.Model):
     nome_completo = models.CharField(max_length=100)
     email = models.EmailField(unique=True, verbose_name="E-mail")
     cpf = models.CharField(max_length=14, unique=True, verbose_name="CPF")
+    matricula = models.CharField("Matrícula", max_length=20, null=True, blank=True)
+    carteira_trabalho = models.CharField("Carteira de Trabalho (CTPS)", max_length=20, null=True, blank=True)
+    serie_ctps = models.CharField("Série", max_length=10, null=True, blank=True)
+    registro_geral = models.CharField("Nº Registro (Livro/Ficha)", max_length=20, null=True, blank=True)
     numero_contrato = models.CharField("Nº do Contrato", max_length=20, blank=True, null=True)
     
     primeiro_acesso = models.BooleanField(default=True, verbose_name="Exigir troca de senha?")
@@ -183,3 +187,38 @@ def signal_equipes_secundarias(sender, instance, action, **kwargs):
     """Roda toda vez que mexe nas equipes secundárias"""
     if action in ["post_add", "post_remove", "post_clear"]:
         garantir_acesso_rh(instance)
+
+# --- Adicione isto ao core_rh/models.py ---
+
+class Ferias(models.Model):
+    funcionario = models.ForeignKey(Funcionario, on_delete=models.CASCADE, verbose_name="Funcionário")
+    
+    # --- PASSO 1: AGENDAMENTO ---
+    periodo_aquisitivo = models.CharField("Período Aquisitivo", max_length=50, help_text="Ex: 2024/2025")
+    abono_pecuniario = models.CharField("Abono Pecuniário", max_length=3, choices=[('Sim', 'Sim'), ('Não', 'Não')], default='Não')
+    data_inicio = models.DateField("Início das Férias (Saída)")
+    data_fim = models.DateField("Fim das Férias (Retorno)")
+
+    # --- PASSO 2: ARQUIVOS GERADOS PELO RH (Para o funcionário assinar) ---
+    arquivo_aviso = models.FileField("Aviso de Férias (Original)", upload_to='ferias/avisos_originais/', null=True, blank=True, help_text="Gere o arquivo no Passo 2 e anexe aqui.")
+    arquivo_recibo = models.FileField("Recibo de Férias (Original)", upload_to='ferias/recibos_originais/', null=True, blank=True)
+
+    # --- DEVOLUÇÃO DO FUNCIONÁRIO ---
+    aviso_assinado = models.FileField("Aviso Assinado (Pelo Colaborador)", upload_to='ferias/avisos_assinados/', null=True, blank=True)
+    recibo_assinado = models.FileField("Recibo Assinado (Pelo Colaborador)", upload_to='ferias/recibos_assinados/', null=True, blank=True)
+
+    status = models.CharField(max_length=20, default='Pendente', choices=[
+        ('Pendente', 'Pendente'),
+        ('Enviado', 'Enviado ao RH'),
+        ('Concluido', 'Concluído')
+    ])
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Agendamento de Férias"
+        verbose_name_plural = "Gestão de Férias"
+        ordering = ['-data_inicio']
+
+    def __str__(self):
+        return f"{self.funcionario.nome_completo} - {self.periodo_aquisitivo}"

@@ -25,7 +25,7 @@
             </li>
             {% if cl.opts.model_name == 'funcionario' %}
             <li class="nav-item">
-                <button class="nav-link rounded-pill px-4 fw-bold" data-bs-toggle="pill" data-bs-target="#content-ferias" type="button">
+                <button class="nav-link rounded-pill px-4 fw-bold" data-bs-toggle="pill" data-bs-target="#content-ferias" type="button" onclick="triggerPainelFerias()">
                     <i class="fas fa-umbrella-beach me-2"></i> Férias
                 </button>
             </li>
@@ -39,9 +39,7 @@
         <div class="tab-pane fade show active" id="content-admin">
             
             <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded-4 shadow-sm border border-light flex-wrap gap-3">
-                
                 <div class="d-flex align-items-center gap-2 flex-grow-1">
-                    
                     <div class="search-wrapper" style="min-width: 300px; max-width: 450px; flex-grow: 1;">
                         {% if cl.search_fields %}
                         <form id="changelist-search" action="" method="get" class="m-0 position-relative">
@@ -49,45 +47,30 @@
                             {% for pair in cl.params.items %}
                                 {% if pair.0 != 'q' %}<input type="hidden" name="{{ pair.0 }}" value="{{ pair.1 }}">{% endif %}
                             {% endfor %}
-                            <input type="text" 
-                                   name="q" 
-                                   value="{{ cl.query }}" 
-                                   class="form-control rounded-pill border-0 bg-light ps-5 py-2 shadow-inner instant-search-admin" 
-                                   placeholder="Pesquisar..." 
-                                   style="height: 45px;"
-                                   autocomplete="off">
+                            <input type="text" name="q" value="{{ cl.query }}" class="form-control rounded-pill border-0 bg-light ps-5 py-2 shadow-inner instant-search-admin" placeholder="Pesquisar..." style="height: 45px;" autocomplete="off">
                         </form>
                         {% endif %}
                     </div>
-
                     {% if cl.opts.model_name == 'funcionario' %}
                         <div class="shadow-sm" style="width: 130px;">
                             <select id="admin-filtro-estado" class="form-select rounded-pill border-0 bg-light" onchange="atualizarFiltroAdmin()" style="height: 45px;">
                                 <option value="">UF (Todas)</option>
-                                {% for est in filter_estados %}
-                                    <option value="{{ est }}">{{ est }}</option>
-                                {% endfor %}
+                                {% for est in filter_estados %}<option value="{{ est }}">{{ est }}</option>{% endfor %}
                             </select>
                         </div>
-
                         <div class="shadow-sm" style="min-width: 200px;">
                             <select id="admin-filtro-equipe" class="form-select rounded-pill border-0 bg-light" onchange="aplicarFiltrosAdmin()" style="height: 45px;">
                                 <option value="">Equipes (Todas)</option>
-                                {% for eq in filter_equipes %}
-                                    <option value="{{ eq.id }}">{{ eq.nome }}</option>
-                                {% endfor %}
+                                {% for eq in filter_equipes %}<option value="{{ eq.id }}">{{ eq.nome }}</option>{% endfor %}
                             </select>
                         </div>
                     {% endif %}
                 </div>
-
                 <div class="d-flex gap-2">
-                    <a href="add/" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center" 
-                       style="background: #FF6600; border:none; height: 45px; text-decoration: none; color: white;">
+                    <a href="add/" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center" style="background: #FF6600; border:none; height: 45px; text-decoration: none; color: white;">
                         <i class="fas fa-plus me-2"></i> Novo
                     </a>
                 </div>
-
             </div>
 
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
@@ -117,8 +100,7 @@
                                     {% if cl.opts.model_name == 'funcionario' %}
                                         <td class="ps-4">
                                             <div class="d-flex align-items-center">
-                                                <div class="avatar-circle me-3 fw-bold text-white shadow-sm" 
-                                                     style="background-color: {% cycle '#FF6600' '#2c3e50' '#27ae60' '#2980b9' %};">
+                                                <div class="avatar-circle me-3 fw-bold text-white shadow-sm" style="background-color: {% cycle '#FF6600' '#2c3e50' '#27ae60' '#2980b9' %};">
                                                     {{ result.nome_completo|slice:":1" }}
                                                 </div>
                                                 <div class="d-flex flex-column">
@@ -129,27 +111,16 @@
                                         </td>
                                         <td>{{ result.cargo|default:"-" }}</td>
                                         <td>{% if result.equipe %}<span class="badge bg-light text-dark border">{{ result.equipe }}</span>{% else %}-{% endif %}</td>
-                                        <td>{% if result.local_trabalho_estado %}{{ result.local_trabalho_estado }}{% elif result.equipe.local_trabalho %}{{ result.equipe.local_trabalho }}{% else %}-{% endif %}</td>
-                                    
+                                        <td>{{ result.local_trabalho_estado|default:result.equipe.local_trabalho|default:"-" }}</td>
                                     {% elif cl.opts.model_name == 'equipe' %}
                                         <td class="ps-4 fw-bold text-dark">{{ result.nome }}</td>
                                         <td>{{ result.local_trabalho|default:"-" }}</td>
-                                        <td>
-                                            {% for g in result.gestores.all %}
-                                                <span class="badge bg-light text-secondary border me-1">{{ g.nome_completo }}</span>
-                                            {% empty %}
-                                                <span class="text-muted small">-</span>
-                                            {% endfor %}
-                                        </td>
-                                    
+                                        <td>{% for g in result.gestores.all %}<span class="badge bg-light text-secondary border me-1">{{ g.nome_completo }}</span>{% empty %}<span class="text-muted small">-</span>{% endfor %}</td>
                                     {% else %}
                                         <td class="ps-4">{{ result }}</td>
                                     {% endif %}
-
                                     <td class="text-end pe-4">
-                                        <a href="{% url cl.opts|admin_urlname:'change' result.pk %}" class="btn btn-icon btn-light rounded-circle text-muted" title="Editar">
-                                            <i class="fas fa-pen"></i>
-                                        </a>
+                                        <a href="{% url cl.opts|admin_urlname:'change' result.pk %}" class="btn btn-icon btn-light rounded-circle text-muted" title="Editar"><i class="fas fa-pen"></i></a>
                                     </td>
                                 </tr>
                                 {% empty %}
@@ -158,12 +129,9 @@
                             </tbody>
                         </table>
                     </div>
-
                     {% block pagination %}
                     <div class="table-footer-clean d-flex justify-content-end align-items-center px-4 py-3 bg-light border-top">
-                        <div class="paginator-wrapper">
-                            {% pagination cl %}
-                        </div>
+                        <div class="paginator-wrapper">{% pagination cl %}</div>
                     </div>
                     {% endblock %}
                 </form>
@@ -172,7 +140,7 @@
 
         <div class="tab-pane fade" id="content-ponto"><div id="rh-panel-container"></div></div>
         
-        <div class="tab-pane fade" id="content-ferias"><div class="text-center py-5"><h4 class="text-muted">Módulo de Férias</h4></div></div>
+        <div class="tab-pane fade" id="content-ferias"><div id="rh-ferias-container"></div></div>
     </div>
 </div>
 
@@ -200,7 +168,6 @@
     window.currentRhMode = "{% if cl.opts.model_name == 'equipe' %}summary{% else %}list{% endif %}";
     function setRhMode(mode) { window.currentRhMode = mode; }
     
-    // Função principal de filtragem da aba GESTÃO DE PONTO
     window.filtrarGestaoPonto = function(mes, ano) {
         const elEstado = document.getElementById('rh-filtro-estado');
         const elEquipe = document.getElementById('rh-filtro-equipe');
@@ -232,7 +199,34 @@
     window.triggerPainelRH = carregarPainelRH;
 
 
-    // --- LÓGICA DA ABA ADMINISTRAÇÃO ---
+    // --- LÓGICA DO PAINEL DE FÉRIAS (ABA 3 - NOVA) ---
+    window.filtrarAdminFerias = function(mes, ano) {
+        const elStatus = document.getElementById('ferias-filtro-status');
+        const elSearch = document.getElementById('ferias-search-input');
+        
+        const status = elStatus ? elStatus.value : '';
+        const query = elSearch ? elSearch.value : '';
+
+        // Url da nova view criada
+        let url = `{% url 'admin_ferias_partial' %}?mes=${mes}&ano=${ano}`;
+        if(status) url += `&status=${encodeURIComponent(status)}`;
+        if(query) url += `&q=${encodeURIComponent(query)}`;
+
+        carregarPainelFerias(url);
+    };
+
+    function carregarPainelFerias(url) {
+        const c = document.getElementById('rh-ferias-container');
+        // Se não passar URL (primeira carga), usa a padrão
+        if (!url) url = "{% url 'admin_ferias_partial' %}";
+        
+        c.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-warning"></div></div>';
+        fetch(url).then(r => r.text()).then(html => { c.innerHTML = html; });
+    }
+    window.triggerPainelFerias = carregarPainelFerias;
+
+
+    // --- LÓGICA DA ABA ADMINISTRAÇÃO (ABA 1) ---
     const MAPA_EQUIPES = {{ json_mapa_equipes|default:"{}"|safe }};
 
     function atualizarFiltroAdmin() {
@@ -246,25 +240,16 @@
         for (let i = 0; i < selEquipe.options.length; i++) {
             const opt = selEquipe.options[i];
             if (opt.value === "") continue;
-            
-            if (estado && !equipesPermitidas.includes(parseInt(opt.value))) {
-                opt.style.display = 'none';
-            } else {
-                opt.style.display = 'block';
-            }
+            if (estado && !equipesPermitidas.includes(parseInt(opt.value))) opt.style.display = 'none';
+            else opt.style.display = 'block';
         }
-        
-        if (estado && selEquipe.value && !equipesPermitidas.includes(parseInt(selEquipe.value))) {
-            selEquipe.value = "";
-        }
-
+        if (estado && selEquipe.value && !equipesPermitidas.includes(parseInt(selEquipe.value))) selEquipe.value = "";
         aplicarFiltrosAdmin();
     }
 
     function aplicarFiltrosAdmin() {
         const selEstado = document.getElementById('admin-filtro-estado');
         const selEquipe = document.getElementById('admin-filtro-equipe');
-        
         const urlParams = new URLSearchParams(window.location.search);
         
         if (selEstado.value) urlParams.set('local_trabalho_estado__exact', selEstado.value);
@@ -280,7 +265,6 @@
         const params = new URLSearchParams(window.location.search);
         const st = params.get('local_trabalho_estado__exact');
         const eq = params.get('equipe__id__exact');
-        
         const selEstado = document.getElementById('admin-filtro-estado');
         const selEquipe = document.getElementById('admin-filtro-equipe');
         
@@ -295,17 +279,22 @@
         }
         if(selEquipe && eq) selEquipe.value = eq;
 
+        // Persistência da Aba Ativa
         const activeTab = localStorage.getItem('activeAdminTab');
         if (activeTab) {
             const tabBtn = document.querySelector(`button[data-bs-target="${activeTab}"]`);
             if (tabBtn) {
                 new bootstrap.Tab(tabBtn).show();
                 if(activeTab === '#content-ponto') triggerPainelRH(window.currentRhMode);
+                if(activeTab === '#content-ferias') triggerPainelFerias(); // Carrega ferias se for a aba ativa
             }
         }
         document.querySelectorAll('button[data-bs-toggle="pill"]').forEach(btn => {
             btn.addEventListener('shown.bs.tab', function (e) {
-                localStorage.setItem('activeAdminTab', e.target.getAttribute('data-bs-target'));
+                const target = e.target.getAttribute('data-bs-target');
+                localStorage.setItem('activeAdminTab', target);
+                // Carrega o conteúdo ao clicar, se ainda não carregou
+                if(target === '#content-ferias') triggerPainelFerias();
             });
         });
     });

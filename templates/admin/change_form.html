@@ -1,130 +1,320 @@
 {% extends "admin/base.html" %}
 {% load i18n admin_urls static admin_modify %}
 
+{% block extrahead %}
+    {{ block.super }}
+    <script src="{% url 'admin:jsi18n' %}"></script>
+    {{ media }}
+    
+    <style>
+        /* --- 1. LIMPEZA TOTAL (Remove tudo que é padrão do Django) --- */
+        #content-main { margin: 0 !important; width: 100% !important; }
+        
+        /* Esconde ícones de ajuda, calendário antigo, botões de adicionar (+) e lupas nativas */
+        .datetimeshortcuts, 
+        .related-widget-wrapper-link, 
+        .help, 
+        .selector-chooser, 
+        .selector-available, 
+        .selector-chosen,
+        .related-widget-wrapper > a { 
+            display: none !important; 
+        }
+
+        /* --- 2. CONTAINER PRINCIPAL E PASSOS --- */
+        fieldset.module {
+            background: #fff;
+            border: 0;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            margin-bottom: 30px !important;
+            padding: 0 !important;
+            /* Permite que o dropdown saia da caixa sem cortar */
+            overflow: visible !important; 
+        }
+
+        /* Títulos dos Passos */
+        fieldset.module h2 {
+            padding: 15px 25px !important;
+            margin: 0 !important;
+            font-size: 16px !important;
+            font-weight: 800 !important;
+            text-transform: uppercase;
+            color: #fff !important;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+        }
+
+        /* Cores */
+        fieldset.module:nth-of-type(1) h2 { background: linear-gradient(135deg, #FF6600, #ff8533); }
+        fieldset.module:nth-of-type(2) h2 { background: linear-gradient(135deg, #2563EB, #3B82F6); }
+        fieldset.module:nth-of-type(3) h2 { background: linear-gradient(135deg, #059669, #10B981); }
+        fieldset.module:nth-of-type(4) h2 { background: #64748B; }
+
+        /* --- 3. GRID SYSTEM (ALINHAMENTO PERFEITO) --- */
+        .form-row {
+            padding: 20px 25px !important;
+            border-bottom: 1px solid #f1f5f9;
+            /* Grid de 2 colunas iguais */
+            display: grid;
+            grid-template-columns: 1fr 1fr; 
+            gap: 30px; /* Espaço entre as colunas */
+            align-items: start; /* Alinha no topo para evitar pulos se a label for grande */
+        }
+        
+        /* Se a linha tiver apenas 1 campo, ocupa as 2 colunas */
+        .form-row.single-field { grid-template-columns: 1fr; }
+
+        .field-box { width: 100%; position: relative; }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #64748B;
+            margin-bottom: 8px;
+            display: block;
+            width: 100% !important;
+        }
+
+        /* --- 4. INPUTS E SELECTS (ALTURA UNIFICADA) --- */
+        /* Todos os inputs visíveis devem ser iguais */
+        input[type="text"], 
+        input[type="number"], 
+        input[type="email"], 
+        input[type="date"], 
+        select,
+        .vTextField {
+            width: 100% !important;
+            height: 50px !important; /* Altura fixa */
+            padding: 0 15px;
+            font-size: 1rem;
+            border: 1px solid #CBD5E1;
+            border-radius: 10px;
+            background-color: #F8FAFC;
+            color: #334155;
+            box-sizing: border-box;
+            /* Remove estilos nativos */
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        /* Seta para Selects normais (Abono) */
+        select:not([multiple]) {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748B'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 18px;
+            padding-right: 40px;
+        }
+
+        /* --- 5. CORREÇÃO CRÍTICA: FUNCIONÁRIO DUPLICADO --- */
+        
+        /* Esconde AGRESSIVAMENTE o select original do Django */
+        .related-widget-wrapper > select,
+        select.admin-autocomplete {
+            display: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+            opacity: 0 !important;
+            position: absolute !important;
+            z-index: -100 !important;
+        }
+
+        /* Estiliza o Select2 (o campo de busca bonito) */
+        .select2-container {
+            width: 100% !important;
+            display: block !important;
+        }
+        
+        .select2-container .select2-selection--single {
+            height: 50px !important; /* Mesma altura dos inputs */
+            background-color: #F8FAFC !important;
+            border: 1px solid #CBD5E1 !important;
+            border-radius: 10px !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 50px !important;
+            padding-left: 15px !important;
+            color: #334155 !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 48px !important;
+            right: 10px !important;
+        }
+
+        /* --- 6. BOTÃO PDF --- */
+        .readonly-box {
+            background: #EFF6FF;
+            border: 1px dashed #3B82F6;
+            color: #1E40AF;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 50px; /* Garante alinhamento se estiver ao lado de um input */
+        }
+        .field-link_gerar_pdf label { display: none !important; }
+
+        /* Foco */
+        input:focus, select:focus, .select2-container--open .select2-selection {
+            border-color: #FF6600 !important;
+            background-color: #fff !important;
+            box-shadow: 0 0 0 4px rgba(255, 102, 0, 0.1) !important;
+            outline: none;
+        }
+
+    </style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid p-0">
+<div id="content-main" class="container-fluid p-0">
     
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h4 class="fw-bold text-dark mb-1">
-                {% if add %}Novo Cadastro{% else %}{{ original|truncatewords:"5" }}{% endif %}
-            </h4>
-            <p class="text-muted mb-0 small text-uppercase fw-bold">{{ opts.verbose_name }}</p>
-        </div>
-        
+        <h4 class="fw-bold text-dark m-0">
+            {% if add %}Nova Solicitação{% else %}{{ original|truncatewords:"5" }}{% endif %}
+        </h4>
         {% if change and not is_popup %}
         <div class="d-flex gap-2">
-            <a href="history/" class="btn btn-white btn-sm rounded-pill border fw-bold text-secondary">
-                <i class="fas fa-history"></i> Histórico
-            </a>
+            {% block object-tools-items %}{% change_form_object_tools %}{% endblock %}
         </div>
         {% endif %}
     </div>
 
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-        <div class="card-body p-4 p-lg-5">
-            
-            <form {% if has_file_field %}enctype="multipart/form-data" {% endif %}action="{{ form_url }}" method="post" id="{{ opts.model_name }}_form" novalidate>
-                {% csrf_token %}
-                {% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
-                
-                {% if errors %}
-                    <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4">
-                        <i class="fas fa-exclamation-triangle me-2"></i> Por favor, corrija os erros marcados abaixo.
-                    </div>
-                {% endif %}
+    <form {% if has_file_field %}enctype="multipart/form-data" {% endif %}action="{{ form_url }}" method="post" id="{{ opts.model_name }}_form" novalidate>
+        {% csrf_token %}
+        {% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
+        
+        {{ adminform.media }}
 
-                <div class="row g-4">
-                    {% for fieldset in adminform %}
-                        {% for line in fieldset %}
+        {% if errors %}
+            <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4">
+                <i class="fas fa-exclamation-triangle me-2"></i> Verifique os erros no formulário.
+            </div>
+        {% endif %}
+
+        {% block field_sets %}
+            {% for fieldset in adminform %}
+                <fieldset class="module aligned {{ fieldset.classes }}">
+                    {% if fieldset.name %}<h2>{{ fieldset.name }}</h2>{% endif %}
+                    
+                    {% if fieldset.description %}
+                        <div class="description px-4 py-3 text-muted bg-light small border-bottom">{{ fieldset.description|safe }}</div>
+                    {% endif %}
+                    
+                    {% for line in fieldset %}
+                        <div class="form-row {% if line.fields|length == 1 %}single-field{% endif %}">
                             {% for field in line %}
-                                <div class="col-12">
-                                    <div class="form-group-modern pb-3 border-bottom border-light">
-                                        <div class="row align-items-center">
-                                            <div class="col-md-3">
-                                                <label class="form-label fw-bold text-secondary mb-0" style="font-size: 0.9rem;">
-                                                    {{ field.field.label }}
-                                                    {% if field.field.field.required %}<span class="text-danger">*</span>{% endif %}
-                                                </label>
+                                <div class="field-box {% if field.field.name %}field-{{ field.field.name }}{% endif %}">
+                                    
+                                    {% if field.is_checkbox %}
+                                        <div class="form-check mt-4 ps-0">
+                                            {{ field.field }}
+                                            <label class="form-check-label ms-2 d-inline text-dark">{{ field.field.label }}</label>
+                                        </div>
+                                    {% else %}
+                                        
+                                        {% if not field.is_readonly %}
+                                            <label for="{{ field.field.id_for_label }}">
+                                                {{ field.field.label }}
+                                                {% if field.field.field.required %}<span class="required" style="color:red">*</span>{% endif %}
+                                            </label>
+                                            
+                                            <div class="input-container">
+                                                {{ field.field }}
                                             </div>
                                             
-                                            <div class="col-md-9">
-                                                <div class="input-wrapper">
-                                                    {{ field.field }}
-                                                </div>
-                                                
-                                                {% if field.field.errors %}
-                                                    <div class="text-danger small mt-1 fw-bold">
-                                                        <i class="fas fa-times-circle"></i> {{ field.field.errors.as_text }}
-                                                    </div>
-                                                {% endif %}
-                                                
-                                                {% if field.field.help_text %}
-                                                    <div class="form-text text-muted small mt-1">
-                                                        {{ field.field.help_text|safe }}
-                                                    </div>
-                                                {% endif %}
+                                            {% if field.field.help_text %}
+                                                <div class="form-text text-muted small mt-1">{{ field.field.help_text|safe }}</div>
+                                            {% endif %}
+                                            {% if field.field.errors %}
+                                                <div class="text-danger small mt-1 fw-bold">{{ field.field.errors.as_text }}</div>
+                                            {% endif %}
+
+                                        {% else %}
+                                            <div class="readonly-box">
+                                                {{ field.contents|safe }}
                                             </div>
-                                        </div>
-                                    </div>
+                                        {% endif %}
+                                        
+                                    {% endif %}
                                 </div>
                             {% endfor %}
-                        {% endfor %}
+                        </div>
                     {% endfor %}
-                </div>
+                </fieldset>
+            {% endfor %}
+        {% endblock %}
 
-                <div class="form-actions mt-5 pt-4 d-flex justify-content-between align-items-center">
-                    <div>
-                        {% if change and not is_popup %}
-                            <a href="delete/" class="btn btn-outline-danger rounded-pill px-4 fw-bold border-0 bg-danger-subtle text-danger">
-                                <i class="fas fa-trash-alt me-2"></i> Deletar
-                            </a>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="d-flex gap-3">
-                        <input type="submit" value="Salvar e Continuar" class="btn btn-light border fw-bold rounded-pill px-4 text-secondary" name="_continue">
-                        <input type="submit" value="Salvar Alterações" class="btn btn-primary rounded-pill px-5 fw-bold shadow-sm" name="_save" 
-                               style="background-color: #FF6600; border-color: #FF6600;">
-                    </div>
-                </div>
-                
-            </form>
+        {% block inline_field_sets %}
+            {% for inline_admin_formset in inline_admin_formsets %}
+                {% include inline_admin_formset.opts.template %}
+            {% endfor %}
+        {% endblock %}
+
+        <div class="submit-row card-body bg-light rounded-4 p-4 mt-4 d-flex justify-content-between align-items-center shadow-sm border">
+            {% if change and not is_popup %}
+                <a href="delete/" class="btn btn-outline-danger rounded-pill px-4 fw-bold border-0"><i class="fas fa-trash-alt me-2"></i> Deletar</a>
+            {% endif %}
+            <div class="d-flex gap-3 ms-auto">
+                <input type="submit" value="Salvar Alterações" class="btn btn-primary rounded-pill px-5 py-3 fw-bold shadow" name="_save" style="background: #FF6600; border-color: #FF6600;">
+            </div>
         </div>
-    </div>
+
+        {% block admin_change_form_document_ready %}
+            <script id="django-admin-form-add-constants" src="{% static 'admin/js/change_form.js' %}" {% if adminform and add %}data-model-name="{{ opts.model_name }}"{% endif %} async></script>
+        {% endblock %}
+        {% prepopulated_fields_js %}
+    </form>
 </div>
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Script para embelezar inputs do Django automaticamente
-        const inputs = document.querySelectorAll('input, select, textarea');
-        inputs.forEach(el => {
-            if(el.type === 'checkbox') {
-                el.classList.add('form-check-input');
-                el.style.width = '20px'; el.style.height = '20px';
-                el.style.marginTop = '0';
-            } else if (el.type !== 'submit' && el.type !== 'hidden') {
-                el.classList.add('form-control', 'shadow-none');
-                el.style.borderRadius = '10px';
-                el.style.backgroundColor = '#f9fafb';
-                el.style.border = '1px solid #e5e7eb';
-                el.style.padding = '12px 15px';
-                
-                el.addEventListener('focus', () => { 
-                    el.style.borderColor = '#FF6600'; 
-                    el.style.backgroundColor = '#fff';
-                    el.style.boxShadow = '0 0 0 4px rgba(255, 102, 0, 0.1)';
-                });
-                el.addEventListener('blur', () => { 
-                    el.style.borderColor = '#e5e7eb'; 
-                    el.style.backgroundColor = '#f9fafb';
-                    el.style.boxShadow = 'none';
-                });
+        
+        // 1. CORREÇÃO DUPLICIDADE FUNCIONÁRIO (Busca ativa pelo elemento original e oculta)
+        // O seletor abaixo pega o select que está dentro do wrapper do Django
+        const originalSelects = document.querySelectorAll('.related-widget-wrapper select');
+        originalSelects.forEach(sel => {
+            // Verifica se este select tem um irmão que é o container do Select2
+            if (sel.nextElementSibling && sel.nextElementSibling.classList.contains('select2-container')) {
+                sel.style.display = 'none';
+                sel.style.visibility = 'hidden';
+                sel.style.position = 'absolute';
             }
         });
+
+        // 2. CONVERTER DATAS PARA FORMATO NATIVO (DD/MM/YYYY -> YYYY-MM-DD)
+        const dateInputs = document.querySelectorAll('input.vDateField');
+        dateInputs.forEach(input => {
+            const native = document.createElement('input');
+            native.type = 'date';
+            native.className = input.className;
+            native.id = input.id;
+            native.name = input.name;
+            
+            // Mantém valor se existir
+            if (input.value && input.value.includes('/')) {
+                const [d, m, y] = input.value.split('/');
+                native.value = `${y}-${m}-${d}`;
+            }
+            input.parentNode.replaceChild(native, input);
+        });
+
+        // 3. LIMPEZA FINAL VISUAL
+        document.querySelectorAll('.datetimeshortcuts').forEach(el => el.remove());
         
-        // Remove widgets de data feios do Django
-        document.querySelectorAll('.datetimeshortcuts').forEach(e => e.remove());
+        // Garante que o botão PDF está limpo
+        const pdfBox = document.querySelector('.field-link_gerar_pdf');
+        if(pdfBox) {
+            pdfBox.querySelectorAll('label').forEach(l => l.style.display = 'none');
+        }
     });
 </script>
 {% endblock %}

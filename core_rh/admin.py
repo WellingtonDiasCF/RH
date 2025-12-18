@@ -3,7 +3,8 @@ from django.contrib import admin
 from django.contrib.auth.models import User, Group
 from django.utils.html import format_html
 from django import forms
-from .models import Funcionario, RegistroPonto, Cargo, Equipe
+from django.urls import reverse # Importante para o botão do PDF
+from .models import Funcionario, RegistroPonto, Cargo, Equipe, Ferias
 
 # --- FORMULÁRIO PERSONALIZADO ---
 class FuncionarioAdminForm(forms.ModelForm):
@@ -19,7 +20,7 @@ class FuncionarioAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance and self.instance.pk:
+        if self.instance and self.instance.pk and self.instance.usuario:
             self.fields['username'].initial = self.instance.usuario.username
             self.fields['email'].initial = self.instance.usuario.email
             self.fields['is_active'].initial = self.instance.usuario.is_active
@@ -31,8 +32,6 @@ class FuncionarioAdmin(admin.ModelAdmin):
     
     list_display = ('nome_completo', 'cargo', 'equipe', 'get_local_trabalho')
     
-    # Mantemos os filtros aqui para o Django aceitar os parâmetros na URL,
-    # mas vamos escondê-los visualmente no template se desejar, pois usaremos os dropdowns no topo.
     list_filter = ('local_trabalho_estado', 'equipe', 'cargo') 
     
     search_fields = ('nome_completo', 'cpf', 'usuario__username', 'email')
@@ -41,12 +40,14 @@ class FuncionarioAdmin(admin.ModelAdmin):
     class Media:
         js = ('js/cep_admin.js',)
 
+    # ATUALIZADO: Adicionei o grupo 'Documentação' com os novos campos
     fieldsets = (
         ('🔐 Acesso', {'fields': ('username', 'password', 'email', 'is_active', 'primeiro_acesso')}),
-        ('👤 Dados Pessoais', {'fields': ('nome_completo', 'cpf', 'data_admissao', 'numero_contrato')}),
+        ('👤 Dados Pessoais', {'fields': ('nome_completo', 'cpf', 'data_admissao')}),
+        ('📄 Documentação (Para Férias)', {'fields': (('matricula', 'registro_geral'), ('carteira_trabalho', 'serie_ctps'))}),
         ('📍 Endereço', {'fields': ('cep', 'endereco', 'bairro', 'cidade', 'estado', 'local_trabalho_estado')}),
-        ('🏢 Corporativo', {'fields': ('cargo', 'equipe', 'outras_equipes')}),
-        ('⏰ Ponto', {'fields': ('jornada_entrada', 'jornada_saida', 'intervalo_padrao')}),
+        ('🏢 Corporativo', {'fields': ('cargo', 'equipe', 'outras_equipes', 'numero_contrato')}),
+        ('⏰ Ponto', {'fields': ('jornada_entrada', 'jornada_saida', 'intervalo_padrao', 'saldo_horas')}),
     )
 
     def get_local_trabalho(self, obj):
@@ -62,13 +63,11 @@ class FuncionarioAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         
-        # 1. Busca estados disponíveis
         estados = Funcionario.objects.exclude(local_trabalho_estado__isnull=True)\
                                      .exclude(local_trabalho_estado='')\
                                      .values_list('local_trabalho_estado', flat=True)\
                                      .distinct().order_by('local_trabalho_estado')
         
-        # 2. Cria mapeamento { 'SP': [id1, id2], 'MG': [id3] } para o JS filtrar
         mapa_estado_equipe = {}
         for est in estados:
             ids = Funcionario.objects.filter(local_trabalho_estado=est)\
@@ -77,7 +76,6 @@ class FuncionarioAdmin(admin.ModelAdmin):
                                      .distinct()
             mapa_estado_equipe[est] = list(ids)
 
-        # 3. Busca todas as equipes para popular o combo inicial
         todas_equipes = list(Equipe.objects.values('id', 'nome').order_by('nome'))
 
         extra_context['filter_estados'] = list(estados)
@@ -87,7 +85,6 @@ class FuncionarioAdmin(admin.ModelAdmin):
         return super().changelist_view(request, extra_context=extra_context)
 
     def save_model(self, request, obj, form, change):
-        # (Lógica original de salvar usuário mantida)
         username = form.cleaned_data['username']
         email = form.cleaned_data['email']
         password = form.cleaned_data['password']
@@ -97,7 +94,7 @@ class FuncionarioAdmin(admin.ModelAdmin):
         first_name = nomes[0].title()
         last_name = ' '.join(nomes[1:]).title() if len(nomes) > 1 else ''
 
-        if change:
+        if change and obj.usuario:
             user = obj.usuario
             user.username = username
             user.email = email
@@ -109,13 +106,20 @@ class FuncionarioAdmin(admin.ModelAdmin):
             user.save()
             obj.save()
         else:
-            user = User.objects.create_user(username=username, email=email, password=password or '123', first_name=first_name, last_name=last_name)
-            user.is_active = is_active
-            user.save()
-            obj.usuario = user
-            if not password:
-                obj.primeiro_acesso = True
-            obj.save()
+            # Cria usuário se não existir
+            try:
+                user = User.objects.create_user(username=username, email=email, password=password or '123456', first_name=first_name, last_name=last_name)
+                user.is_active = is_active
+                user.save()
+                obj.usuario = user
+                if not password:
+                    obj.primeiro_acesso = True
+                obj.save()
+            except Exception as e:
+                # Caso o usuário já exista mas não esteja vinculado, tenta vincular
+                if User.objects.filter(username=username).exists():
+                     obj.usuario = User.objects.get(username=username)
+                     obj.save()
 
 
 # --- ADMIN EQUIPE ---
@@ -144,19 +148,68 @@ class RegistroPontoAdmin(admin.ModelAdmin):
     status_assinaturas.short_description = "Assinaturas"
 
 
+# --- ADMIN FÉRIAS (3 ETAPAS) ---
+# --- ADMIN FÉRIAS (CONFIGURAÇÃO CORRETA) ---
+class FeriasAdmin(admin.ModelAdmin):
+    # O PULO DO GATO: Autocomplete fields ativa a busca bonita
+    autocomplete_fields = ['funcionario'] 
+    
+    list_display = ('funcionario', 'periodo_aquisitivo', 'data_inicio', 'status_etapas', 'botao_pdf')
+    list_filter = ('status', 'abono_pecuniario')
+    search_fields = ('funcionario__nome_completo',)
+    
+    def botao_pdf(self, obj):
+        if obj.id:
+            url = reverse('gerar_aviso_ferias_pdf', args=[obj.id])
+            return format_html('<a class="button" href="{}" target="_blank" style="background:#17a2b8; color:white;"><i class="fas fa-print"></i> PDF</a>', url)
+        return "-"
+    botao_pdf.short_description = "Aviso"
+
+    def status_etapas(self, obj):
+        agendado = "✅" if obj.data_inicio else "⬜"
+        arquivo = "✅" if obj.arquivo_aviso else "⬜"
+        assinado = "✅" if obj.aviso_assinado else "⬜"
+        return f"1.Agenda {agendado} ➔ 2.Arq {arquivo} ➔ 3.Assinou {assinado}"
+    status_etapas.short_description = "Fluxo"
+
+    fieldsets = (
+        ('PASSO 1: AGENDAR', {
+            'fields': ('funcionario', ('data_inicio', 'data_fim'), ('periodo_aquisitivo', 'abono_pecuniario')),
+            'classes': ('wide', 'extrapretty'), 
+        }),
+        ('PASSO 2: GERAR DOCUMENTO', {
+            'description': 'Salve o agendamento, clique no botão para gerar o PDF e depois anexe abaixo.',
+            'fields': ('link_gerar_pdf', 'arquivo_aviso'),
+        }),
+        ('PASSO 3: UPLOAD DO RECIBO', {
+            'fields': ('arquivo_recibo',),
+        }),
+        ('Status (Automático)', {
+            'fields': ('status', 'aviso_assinado', 'recibo_assinado'),
+            'classes': ('collapse',), 
+        }),
+    )
+    readonly_fields = ('link_gerar_pdf', 'aviso_assinado', 'recibo_assinado')
+
+    def link_gerar_pdf(self, obj):
+        if obj.id:
+            url = reverse('gerar_aviso_ferias_pdf', args=[obj.id])
+            return format_html(
+                '<a href="{}" target="_blank" class="button" style="background-color: #007bff; color: white; padding: 10px 20px; width:100%; text-align:center;">'
+                '<i class="fas fa-file-pdf"></i> GERAR PDF DE AVISO</a> <br><br> '
+                '<span style="color: #666;">(Clique para baixar, depois faça o upload no campo abaixo)</span>', url)
+        return "Salve primeiro para gerar."
+    link_gerar_pdf.short_description = "Ação"
+
 # --- REGISTROS ---
 admin.site.register(Funcionario, FuncionarioAdmin)
 admin.site.register(Equipe, EquipeAdmin)
 admin.site.register(Cargo, admin.ModelAdmin)
 admin.site.register(RegistroPonto, RegistroPontoAdmin)
+admin.site.register(Ferias, FeriasAdmin)
 
 try:
     admin.site.unregister(User)
     admin.site.unregister(Group)
 except admin.sites.NotRegistered:
     pass
-# admin.py (Exemplo do que PODE estar causando erro se foi modificado)
-def response_add(self, request, obj, post_url_continue=None):
-    # Se você sobrescreveu isso e não tratou o popup, ele trava.
-    # O ideal é não sobrescrever a menos que necessário.
-    return super().response_add(request, obj, post_url_continue)

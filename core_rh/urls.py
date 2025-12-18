@@ -37,4 +37,12 @@ urlpatterns = [
     path('password_reset/done/', views.CustomPasswordResetDoneView.as_view(), name='password_reset_done'),
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
+    # --- Em core_rh/urls.py, adicione dentro de urlpatterns ---
+    path('minhas-ferias/', views.minhas_ferias_view, name='minhas_ferias'),
+    path('minhas-ferias/upload/<int:ferias_id>/', views.upload_ferias_view, name='upload_ferias'),
+    # --- ADICIONE ESTAS LINHAS AQUI ---
+    path('minhas-ferias/', views.minhas_ferias_view, name='minhas_ferias'),
+    path('minhas-ferias/upload/<int:ferias_id>/', views.upload_ferias_view, name='upload_ferias'),
+    path('api/admin/ferias-partial/', views.admin_ferias_partial_view, name='admin_ferias_partial'),
+    
 ]

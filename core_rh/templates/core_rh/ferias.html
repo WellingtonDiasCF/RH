@@ -1,0 +1,452 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minhas Férias | Portal RH</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-color: #FF6600;
+            --primary-hover: #e65c00;
+            --bg-body: #f4f6f9;
+            --card-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            --text-main: #2c3e50;
+        }
+        
+        body {
+            background-color: var(--bg-body);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            min-height: 100vh;
+            padding-bottom: 60px;
+        }
+
+        /* --- CABEÇALHO --- */
+        .navbar-custom {
+            background: linear-gradient(135deg, #FFF 0%, #f8f9fa 100%);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            padding: 1rem 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        }
+        .brand-text {
+            font-weight: 800;
+            color: var(--primary-color);
+            letter-spacing: -0.5px;
+            font-size: 1.5rem;
+        }
+
+        /* --- BOTÃO VOLTAR --- */
+        .btn-back {
+            background: white;
+            border: 1px solid #e9ecef;
+            color: #6c757d;
+            border-radius: 12px;
+            padding: 8px 16px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .btn-back:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        /* --- CARDS DE FÉRIAS --- */
+        .ferias-card {
+            background: white;
+            border: none;
+            border-radius: 24px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 30px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        .ferias-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header-styled {
+            background: linear-gradient(to right, #ffffff, #fff5ec);
+            padding: 25px 30px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .periodo-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .periodo-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #2c3e50;
+        }
+
+        /* --- BADGES DE STATUS --- */
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .bg-pendente { background: #fff3cd; color: #856404; }
+        .bg-enviado { background: #cce5ff; color: #004085; }
+        .bg-concluido { background: #d4edda; color: #155724; }
+
+        /* --- SEÇÕES INTERNAS (AVISO/RECIBO) --- */
+        .doc-section {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 25px;
+            height: 100%;
+            border: 1px solid transparent;
+            transition: border-color 0.2s;
+        }
+        .doc-section:hover {
+            border-color: #ffdec2;
+            background: #fffbf7;
+        }
+        
+        .doc-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #495057;
+        }
+        .icon-box {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-color);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        /* --- BOTÕES DE AÇÃO --- */
+        .btn-download {
+            background: white;
+            border: 2px solid #e9ecef;
+            color: #495057;
+            font-weight: 600;
+            border-radius: 10px;
+            width: 100%;
+            padding: 10px;
+            transition: all 0.2s;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            text-decoration: none;
+        }
+        .btn-download:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            background: white;
+        }
+        
+        .btn-upload {
+            background: var(--primary-color);
+            border: none;
+            color: white;
+            font-weight: 600;
+            border-radius: 10px;
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            transition: background 0.2s;
+            box-shadow: 0 4px 10px rgba(255, 102, 0, 0.3);
+        }
+        .btn-upload:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+        .btn-upload:disabled {
+            background: #e9ecef;
+            color: #adb5bd;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* --- AREA DE UPLOAD DO MODAL --- */
+        .upload-zone {
+            border: 2px dashed #ced4da;
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            background: #fdfdfd;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--primary-color);
+            background: #fff5ec;
+        }
+        .upload-zone input[type="file"] {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 768px) {
+            .periodo-value { font-size: 1.1rem; }
+            .card-header-styled { flex-direction: column; align-items: flex-start; }
+            .status-badge { align-self: flex-start; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-custom sticky-top mb-5">
+        <div class="container">
+            <div class="d-flex align-items-center gap-3">
+                <a href="{% url 'home' %}" class="btn-back">
+                    <i class="fas fa-chevron-left me-1"></i> Voltar
+                </a>
+                <span class="brand-text ms-2">Minhas Férias</span>
+            </div>
+            <div class="d-none d-md-block text-muted fw-bold small">
+                {{ funcionario.nome_completo }}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} border-0 shadow-sm rounded-4 mb-4 d-flex align-items-center">
+                    <i class="fas fa-info-circle me-3 fs-5"></i>
+                    <div class="fw-medium">{{ message }}</div>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% if lista_ferias %}
+            <div class="row justify-content-center">
+                {% for item in lista_ferias %}
+                <div class="col-lg-10">
+                    <div class="ferias-card">
+                        
+                        <div class="card-header-styled">
+                            <div>
+                                <div class="periodo-label">Período Aquisitivo</div>
+                                <div class="periodo-value">{{ item.periodo_aquisitivo }}</div>
+                                <div class="text-muted mt-1 small">
+                                    <i class="far fa-calendar me-1"></i> Gozo: {{ item.data_inicio|date:"d/m/Y" }} a {{ item.data_fim|date:"d/m/Y" }}
+                                </div>
+                            </div>
+
+                            {% if item.status == 'Concluido' %}
+                                <div class="status-badge bg-concluido"><i class="fas fa-check-circle"></i> Concluído</div>
+                            {% elif item.status == 'Enviado' %}
+                                <div class="status-badge bg-enviado"><i class="fas fa-clock"></i> Em Análise</div>
+                            {% else %}
+                                <div class="status-badge bg-pendente"><i class="fas fa-exclamation-circle"></i> Pendente</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="card-body p-4">
+                            <div class="row g-4">
+                                
+                                <div class="col-md-6">
+                                    <div class="doc-section">
+                                        <div class="doc-title">
+                                            <div class="icon-box"><i class="fas fa-file-signature"></i></div>
+                                            Aviso de Férias
+                                        </div>
+
+                                        <div class="d-flex flex-column gap-2">
+                                            {% if item.arquivo_aviso %}
+                                                <a href="{{ item.arquivo_aviso.url }}" target="_blank" class="btn-download" title="Baixar documento original">
+                                                    <span><i class="fas fa-cloud-download-alt me-2 text-muted"></i> Baixar PDF</span>
+                                                    <i class="fas fa-chevron-right text-muted small"></i>
+                                                </a>
+                                                
+                                                <button type="button" class="btn-upload" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalUpload{{ item.id }}"
+                                                        onclick="setUploadType('aviso', {{ item.id }})">
+                                                    <i class="fas fa-cloud-upload-alt me-2"></i> Enviar Assinado
+                                                </button>
+
+                                            {% else %}
+                                                <button disabled class="btn-download opacity-50" style="cursor: not-allowed;">
+                                                    <span><i class="fas fa-clock me-2"></i> Aguardando arquivo do RH...</span>
+                                                </button>
+                                                
+                                                <button disabled class="btn-upload">
+                                                    <i class="fas fa-lock me-2"></i> Aguardando RH
+                                                </button>
+                                            {% endif %}
+                                        </div>
+
+                                        {% if item.aviso_assinado %}
+                                            <div class="mt-3 pt-3 border-top d-flex align-items-center text-success small fw-bold">
+                                                <i class="fas fa-check-double me-2"></i> 
+                                                <span>Enviado com sucesso</span>
+                                                <a href="{{ item.aviso_assinado.url }}" target="_blank" class="ms-auto text-decoration-none fw-bold text-success">Ver</a>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="doc-section">
+                                        <div class="doc-title">
+                                            <div class="icon-box"><i class="fas fa-receipt"></i></div>
+                                            Recibo de Férias
+                                        </div>
+
+                                        <div class="d-flex flex-column gap-2">
+                                            {% if item.arquivo_recibo %}
+                                                <a href="{{ item.arquivo_recibo.url }}" target="_blank" class="btn-download">
+                                                    <span><i class="fas fa-cloud-download-alt me-2 text-muted"></i> Baixar PDF</span>
+                                                    <i class="fas fa-chevron-right text-muted small"></i>
+                                                </a>
+
+                                                <button type="button" class="btn-upload" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalUpload{{ item.id }}"
+                                                        onclick="setUploadType('recibo', {{ item.id }})">
+                                                    <i class="fas fa-cloud-upload-alt me-2"></i> Enviar Assinado
+                                                </button>
+
+                                            {% else %}
+                                                <button disabled class="btn-download opacity-50" style="cursor: not-allowed;">
+                                                    <span><i class="fas fa-clock me-2"></i> Aguardando arquivo do RH...</span>
+                                                </button>
+
+                                                <button disabled class="btn-upload">
+                                                    <i class="fas fa-lock me-2"></i> Aguardando RH
+                                                </button>
+                                            {% endif %}
+                                        </div>
+
+                                        {% if item.recibo_assinado %}
+                                            <div class="mt-3 pt-3 border-top d-flex align-items-center text-success small fw-bold">
+                                                <i class="fas fa-check-double me-2"></i> 
+                                                <span>Enviado com sucesso</span>
+                                                <a href="{{ item.recibo_assinado.url }}" target="_blank" class="ms-auto text-decoration-none fw-bold text-success">Ver</a>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal fade" id="modalUpload{{ item.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content rounded-4 border-0 shadow-lg">
+                                <div class="modal-header border-0 pb-0">
+                                    <h5 class="modal-title fw-bold ms-2 mt-2">Enviar Documento</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body p-4 pt-2">
+                                    <form action="{% url 'upload_ferias' item.id %}" method="post" enctype="multipart/form-data">
+                                        {% csrf_token %}
+                                        <p class="text-muted small ms-2 mb-4">Selecione o arquivo assinado.</p>
+                                        
+                                        <div id="upload-aviso-container-{{ item.id }}" class="mb-3 d-none upload-field">
+                                            <label class="d-block fw-bold mb-2 text-dark">Aviso de Férias</label>
+                                            <div class="upload-zone" id="drop-zone-aviso-{{ item.id }}">
+                                                <input type="file" name="aviso_file" onchange="updateFileName(this, 'label-aviso-{{ item.id }}')">
+                                                <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i>
+                                                <div id="label-aviso-{{ item.id }}" class="fw-bold text-muted small">Clique ou arraste o arquivo</div>
+                                            </div>
+                                        </div>
+
+                                        <div id="upload-recibo-container-{{ item.id }}" class="mb-3 d-none upload-field">
+                                            <label class="d-block fw-bold mb-2 text-dark">Recibo de Férias</label>
+                                            <div class="upload-zone" id="drop-zone-recibo-{{ item.id }}">
+                                                <input type="file" name="recibo_file" onchange="updateFileName(this, 'label-recibo-{{ item.id }}')">
+                                                <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i>
+                                                <div id="label-recibo-{{ item.id }}" class="fw-bold text-muted small">Clique ou arraste o arquivo</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="d-grid mt-4">
+                                            <button type="submit" class="btn btn-primary py-3 fw-bold rounded-pill" style="background: var(--primary-color); border:none;">Confirmar Envio</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="d-flex flex-column align-items-center justify-content-center py-5 mt-5">
+                <div class="bg-white p-5 rounded-circle shadow-sm mb-4">
+                    <i class="fas fa-umbrella-beach fa-4x text-muted opacity-25"></i>
+                </div>
+                <h3 class="fw-bold text-secondary">Tudo tranquilo!</h3>
+                <p class="text-muted">Nenhuma férias registrada no momento.</p>
+                <a href="{% url 'home' %}" class="btn btn-outline-primary rounded-pill px-4 mt-2">Voltar ao Início</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function setUploadType(type, id) {
+            document.querySelectorAll(`#modalUpload${id} .upload-field`).forEach(el => {
+                el.classList.add('d-none');
+                el.querySelector('input').required = false;
+            });
+            if (type === 'aviso') {
+                const el = document.getElementById(`upload-aviso-container-${id}`);
+                el.classList.remove('d-none');
+                el.querySelector('input').required = true;
+            } else {
+                const el = document.getElementById(`upload-recibo-container-${id}`);
+                el.classList.remove('d-none');
+                el.querySelector('input').required = true;
+            }
+        }
+        function updateFileName(input, labelId) {
+            const label = document.getElementById(labelId);
+            if (input.files && input.files.length > 0) {
+                label.innerHTML = `<span class="text-success fw-bold"><i class="fas fa-check me-1"></i> ${input.files[0].name}</span>`;
+                input.parentElement.style.borderColor = "#198754";
+                input.parentElement.style.backgroundColor = "#f0fff4";
+            } else {
+                label.innerHTML = "Clique ou arraste o arquivo";
+                input.parentElement.style.borderColor = "#ced4da";
+                input.parentElement.style.backgroundColor = "#fdfdfd";
+            }
+        }
+    </script>
+</body>
+</html>

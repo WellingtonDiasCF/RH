@@ -149,7 +149,13 @@
             <span class="card-title">Registrar Ponto</span>
             <span class="card-desc">Controle de entrada e saída</span>
         </a>
-
+{% if tem_ferias %}
+    <a href="{% url 'minhas_ferias' %}" class="card">
+        <i class="fa-solid fa-umbrella-beach card-icon"></i>
+        <span class="card-title">Minhas Férias</span>
+        <span class="card-desc">Avisos e Recibos</span>
+    </a>
+    {% endif %}
     </div>
 
     <form action="{% url 'logout' %}" method="post" class="logout-form">
