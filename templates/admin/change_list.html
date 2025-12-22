@@ -1,4 +1,4 @@
-{% extends "admin/base.html" %}
+{% extends "admin/change_list.html" %}
 {% load i18n admin_urls static admin_list %}
 
 {% block content %}
@@ -7,11 +7,13 @@
     {% if cl.opts.model_name == 'funcionario' or cl.opts.model_name == 'equipe' %}
     <div class="d-flex justify-content-center mb-5">
         <ul class="nav nav-pills custom-nav p-1 bg-white border shadow-sm rounded-pill">
+            
             <li class="nav-item">
                 <button class="nav-link active rounded-pill px-4 fw-bold" id="tab-admin" data-bs-toggle="pill" data-bs-target="#content-admin" type="button">
                     <i class="fas fa-database me-2"></i> Administração
                 </button>
             </li>
+
             <li class="nav-item">
                 {% if cl.opts.model_name == 'equipe' %}
                     <button class="nav-link rounded-pill px-4 fw-bold" data-bs-toggle="pill" data-bs-target="#content-ponto" type="button" onclick="setRhMode('summary'); triggerPainelRH('summary')">
@@ -23,6 +25,15 @@
                     </button>
                 {% endif %}
             </li>
+
+            {% if cl.opts.model_name == 'funcionario' %}
+            <li class="nav-item">
+                <button class="nav-link rounded-pill px-4 fw-bold" data-bs-toggle="pill" data-bs-target="#content-contracheque" type="button" onclick="triggerPainelContracheque()">
+                    <i class="fas fa-file-invoice-dollar me-2"></i> Contracheque
+                </button>
+            </li>
+            {% endif %}
+
             {% if cl.opts.model_name == 'funcionario' %}
             <li class="nav-item">
                 <button class="nav-link rounded-pill px-4 fw-bold" data-bs-toggle="pill" data-bs-target="#content-ferias" type="button" onclick="triggerPainelFerias()">
@@ -139,21 +150,40 @@
         </div>
 
         <div class="tab-pane fade" id="content-ponto"><div id="rh-panel-container"></div></div>
+
+        <div class="tab-pane fade" id="content-contracheque"><div id="rh-contracheque-container"></div></div>
         
         <div class="tab-pane fade" id="content-ferias"><div id="rh-ferias-container"></div></div>
     </div>
 </div>
 
 <style>
-    /* Estilos do Admin */
+    /* --- CSS REFORÇADO PARA AS ABAS --- */
+    .custom-nav .nav-link { 
+        color: #555 !important; /* Cor padrão do texto (Cinza Escuro) */
+        transition: all 0.3s; 
+        background: transparent;
+    }
+    
+    .custom-nav .nav-link:hover {
+        background-color: #f8f9fa;
+        color: #333 !important;
+    }
+
+    /* Estado ATIVO (Laranja com texto Branco) */
+    .custom-nav .nav-link.active { 
+        background-color: #FF6600 !important; 
+        color: white !important; 
+        box-shadow: 0 4px 10px rgba(255, 102, 0, 0.3);
+    }
+
+    /* Outros Estilos */
     .table-footer-clean, .paginator-wrapper, .paginator { font-size: 0 !important; line-height: 0; color: transparent; }
     .paginator a, .paginator span.this-page { font-size: 0.85rem !important; line-height: normal; color: #333 !important; display: inline-block; padding: 6px 12px; border-radius: 6px; margin-left: 5px; text-decoration: none; font-weight: bold; background: white; border: 1px solid #ddd; }
     .paginator a:hover { border-color: #FF6600; color: #FF6600 !important; }
     .paginator span.this-page { background: #FF6600; color: white !important; border-color: #FF6600; }
     .paginator .small, .paginator .quiet { display: none !important; }
     .rh-page-container { padding: 30px; max-width: 1600px; margin: 0 auto; overflow: visible !important; }
-    .custom-nav .nav-link.active { background-color: #FF6600 !important; color: white !important; }
-    .custom-nav .nav-link { color: #555; transition: all 0.3s; }
     .custom-table { border-collapse: separate; border-spacing: 0; width: 100%; }
     .custom-table thead th { border-bottom: 1px solid #eee; border-top: none; white-space: nowrap; }
     .custom-table tbody td { border-bottom: 1px solid #f9f9f9; vertical-align: middle; padding: 15px 10px; }
@@ -199,7 +229,7 @@
     window.triggerPainelRH = carregarPainelRH;
 
 
-    // --- LÓGICA DO PAINEL DE FÉRIAS (ABA 3 - NOVA) ---
+    // --- LÓGICA DO PAINEL DE FÉRIAS (ABA 4) ---
     window.filtrarAdminFerias = function(mes, ano) {
         const elStatus = document.getElementById('ferias-filtro-status');
         const elSearch = document.getElementById('ferias-search-input');
@@ -223,6 +253,26 @@
     }
     window.triggerPainelFerias = carregarPainelFerias;
 
+    // --- LÓGICA DO PAINEL DE CONTRACHEQUE (ABA 3 - NOVA) ---
+    window.filtrarAdminContracheque = function(mes, ano) {
+        const elSearch = document.getElementById('contracheque-search-input');
+        const query = elSearch ? elSearch.value : '';
+
+        // URL da view parcial
+        let url = `{% url 'admin_contracheque_partial' %}?mes=${mes}&ano=${ano}`;
+        if(query) url += `&q=${encodeURIComponent(query)}`;
+
+        carregarPainelContracheque(url);
+    };
+
+    function carregarPainelContracheque(url) {
+        const c = document.getElementById('rh-contracheque-container');
+        if (!url) url = "{% url 'admin_contracheque_partial' %}";
+        
+        c.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div></div>';
+        fetch(url).then(r => r.text()).then(html => { c.innerHTML = html; });
+    }
+    window.triggerPainelContracheque = carregarPainelContracheque;
 
     // --- LÓGICA DA ABA ADMINISTRAÇÃO (ABA 1) ---
     const MAPA_EQUIPES = {{ json_mapa_equipes|default:"{}"|safe }};
@@ -284,6 +334,7 @@
                 new bootstrap.Tab(tabBtn).show();
                 if(activeTab === '#content-ponto') triggerPainelRH(window.currentRhMode);
                 if(activeTab === '#content-ferias') triggerPainelFerias();
+                if(activeTab === '#content-contracheque') triggerPainelContracheque();
             }
         }
         document.querySelectorAll('button[data-bs-toggle="pill"]').forEach(btn => {
@@ -291,6 +342,7 @@
                 const target = e.target.getAttribute('data-bs-target');
                 localStorage.setItem('activeAdminTab', target);
                 if(target === '#content-ferias') triggerPainelFerias();
+                if(target === '#content-contracheque') triggerPainelContracheque();
             });
         });
     });

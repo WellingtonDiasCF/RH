@@ -1238,10 +1238,9 @@ def gerar_aviso_ferias_pdf(request, ferias_id):
     return response
 @login_required
 def admin_ferias_partial_view(request):
-    # Verifica permissão
-    if not (request.user.is_staff or request.user.is_superuser):
+    # --- CORREÇÃO AQUI: Usa a função usuario_eh_rh em vez de só is_staff ---
+    if not (request.user.is_staff or usuario_eh_rh(request.user)):
         return HttpResponse("Acesso negado", status=403)
-
     # Filtros Básicos
     q = request.GET.get('q', '').strip()
     status_filtro = request.GET.get('status', '')
@@ -1343,3 +1342,199 @@ def assinar_contracheque_local(request, pk):
         
         return redirect('meus_contracheques')
     return redirect('home')
+try:
+    from pypdf import PdfReader, PdfWriter
+except ImportError:
+    PdfReader = None
+    PdfWriter = None
+@login_required
+def admin_contracheque_partial(request):
+    # 1. Filtros de Data e Busca
+    hoje = timezone.now()
+    try:
+        mes_atual = int(request.GET.get('mes', hoje.month))
+        ano_atual = int(request.GET.get('ano', hoje.year))
+    except ValueError:
+        mes_atual = hoje.month
+        ano_atual = hoje.year
+
+    termo_busca = request.GET.get('q', '').strip()
+
+    # 2. Navegação (Mês Anterior / Próximo)
+    mes_anterior = mes_atual - 1 if mes_atual > 1 else 12
+    ano_anterior = ano_atual if mes_atual > 1 else ano_atual - 1
+    
+    mes_proximo = mes_atual + 1 if mes_atual < 12 else 1
+    ano_proximo = ano_atual if mes_atual < 12 else ano_atual + 1
+
+    # 3. Buscar Funcionários
+    funcionarios = Funcionario.objects.all().order_by('nome_completo')
+    
+    if termo_busca:
+        funcionarios = funcionarios.filter(nome_completo__icontains=termo_busca)
+
+    # 4. Montar a Lista com Status
+    lista_equipe = []
+    
+    # Busca otimizada dos contracheques do mês
+    contracheques_mes = {
+        cc.funcionario_id: cc 
+        for cc in Contracheque.objects.filter(mes=mes_atual, ano=ano_atual)
+    }
+
+    for func in funcionarios:
+        cc = contracheques_mes.get(func.id)
+        
+        status_envio = bool(cc and cc.arquivo)
+        status_assinatura = bool(cc and cc.data_ciencia)
+        
+        lista_equipe.append({
+            'funcionario': func,
+            'contracheque': cc,
+            'enviado': status_envio,
+            'assinado': status_assinatura
+        })
+
+    # 5. Contexto para o Template
+    context = {
+        'lista_equipe': lista_equipe,
+        'mes_atual': mes_atual,
+        'ano_atual': ano_atual,
+        'nome_mes': dict(Contracheque.MESES).get(mes_atual),
+        'nav_anterior': {'mes': mes_anterior, 'ano': ano_anterior},
+        'nav_proximo': {'mes': mes_proximo, 'ano': ano_proximo},
+        'q': termo_busca,
+        'meses_choices': Contracheque.MESES, 
+    }
+    
+    # Aponta para o include que você criou
+    return render(request, 'core_rh/includes/rh_contracheque_moderno.html', context)
+
+# Certifique-se de ter este import no topo:
+from django.urls import reverse
+
+# Em core_rh/views.py
+
+# Certifique-se de ter os imports:
+from django.urls import reverse
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.files.base import ContentFile
+import io
+
+try:
+    from pypdf import PdfReader, PdfWriter
+except ImportError:
+    PdfReader = None
+    PdfWriter = None
+
+@login_required
+def gerenciar_contracheques(request):
+    # 1. Definição da URL de retorno (Para a lista de Funcionários)
+    # Tenta usar o reverse do admin, se falhar usa o link direto
+    try:
+        # Isso gera: /admin/core_rh/funcionario/
+        fallback_url = reverse('admin:core_rh_funcionario_changelist')
+    except:
+        fallback_url = '/admin/core_rh/funcionario/'
+        
+    # Se o form trouxer um 'next', usa ele. Se não, usa o fallback.
+    next_url = request.POST.get('next') or request.GET.get('next') or fallback_url
+
+    # 2. Verificação de Permissão
+    if not (request.user.is_staff or usuario_eh_rh(request.user)):
+        return render(request, 'core_rh/upload_log.html', {
+            'erro_critico': 'Acesso Negado: Você não tem permissão para acessar esta área.',
+            'next_url': next_url
+        })
+
+    # 3. Se for GET, redireciona para a lista de funcionários imediatamente
+    if request.method == 'GET':
+        return redirect(next_url)
+
+    # 4. PROCESSAMENTO DO ARQUIVO (POST)
+    if 'arquivo_pdf' not in request.FILES:
+        return render(request, 'core_rh/upload_log.html', {
+            'erro_critico': 'Nenhum arquivo PDF foi enviado.',
+            'next_url': next_url
+        })
+
+    if not PdfReader:
+        return render(request, 'core_rh/upload_log.html', {
+            'erro_critico': 'Biblioteca pypdf não instalada. Avise o suporte.',
+            'next_url': next_url
+        })
+
+    try:
+        arquivo = request.FILES['arquivo_pdf']
+        mes_upload = int(request.POST.get('mes_upload'))
+        ano_upload = int(request.POST.get('ano_upload'))
+
+        try:
+            reader = PdfReader(arquivo)
+        except Exception as e:
+            raise Exception(f"Arquivo inválido ou corrompido: {str(e)}")
+
+        funcionarios_db = Funcionario.objects.all()
+        log_sucesso = []
+        log_erro = []
+        
+        for i, page in enumerate(reader.pages):
+            try:
+                texto = page.extract_text() or ""
+                texto = texto.upper()
+            except:
+                texto = ""
+
+            encontrou = False
+            
+            for func in funcionarios_db:
+                # Normaliza para evitar erros de espaços
+                nome_busca = func.nome_completo.strip().upper()
+                
+                if nome_busca and nome_busca in texto:
+                    writer = PdfWriter()
+                    writer.add_page(page)
+                    pdf_bytes = io.BytesIO()
+                    writer.write(pdf_bytes)
+                    
+                    cc, created = Contracheque.objects.update_or_create(
+                        funcionario=func, mes=mes_upload, ano=ano_upload,
+                        defaults={'arquivo': None}
+                    )
+                    
+                    nome_arq = f"holerite_{func.id}_{mes_upload}_{ano_upload}.pdf"
+                    cc.arquivo.save(nome_arq, ContentFile(pdf_bytes.getvalue()))
+                    
+                    log_sucesso.append({
+                        'pagina': i + 1,
+                        'nome': func.nome_completo,
+                        'status': 'Criado' if created else 'Atualizado'
+                    })
+                    encontrou = True
+                    break 
+            
+            if not encontrou:
+                log_erro.append({
+                    'pagina': i + 1,
+                    'motivo': 'Nome não encontrado no texto.'
+                })
+
+        # Renderiza o Log passando a next_url correta (/admin/core_rh/funcionario/)
+        context = {
+            'log_sucesso': log_sucesso,
+            'log_erro': log_erro,
+            'total_sucesso': len(log_sucesso),
+            'total_erro': len(log_erro),
+            'mes_nome': dict(Contracheque.MESES).get(mes_upload, mes_upload),
+            'ano': ano_upload,
+            'next_url': next_url, 
+        }
+        return render(request, 'core_rh/upload_log.html', context)
+
+    except Exception as e:
+        return render(request, 'core_rh/upload_log.html', {
+            'erro_critico': f"Erro no processamento: {str(e)}",
+            'next_url': next_url
+        })

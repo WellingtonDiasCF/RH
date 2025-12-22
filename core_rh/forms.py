@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-
+from .models import Contracheque
 
 User = get_user_model()
 
@@ -31,3 +31,8 @@ class CpfPasswordResetForm(forms.Form):
             raise ValidationError("CPF não encontrado no sistema.")
 
         return cpf_limpo
+    
+class UploadLoteContrachequeForm(forms.Form):
+    arquivo = forms.FileField(label="Arquivo PDF Único (Todos os Funcionários)")
+    mes = forms.ChoiceField(choices=Contracheque.MESES, label="Mês de Referência")
+    ano = forms.IntegerField(label="Ano de Referência", initial=2025)

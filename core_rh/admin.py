@@ -1,11 +1,67 @@
 import json
+import io
 from django.contrib import admin
 from django.contrib.auth.models import User, Group
 from django.utils.html import format_html
 from django import forms
-from django.urls import reverse
-from django.shortcuts import redirect # Necessário para o botão PDF
+from django.urls import reverse, path
+from django.shortcuts import redirect, render
+from django.contrib import messages
+from django.core.files.base import ContentFile
+
 from .models import Funcionario, RegistroPonto, Cargo, Equipe, Ferias, Contracheque
+from .forms import UploadLoteContrachequeForm
+
+# Tenta importar pypdf de forma segura
+try:
+    from pypdf import PdfReader, PdfWriter
+except ImportError:
+    PdfReader = None
+    PdfWriter = None
+
+# --- PERMISSÕES PERSONALIZADAS (RH) ---
+
+def is_rh_member(user):
+    """Retorna True se o usuário é Superuser ou membro da Equipe RH"""
+    if not user or not user.is_authenticated: return False
+    if user.is_superuser: return True
+    
+    # 1. Verifica Grupo do Django
+    if user.groups.filter(name='RH').exists(): return True
+
+    # 2. Verifica Equipe do Funcionário
+    try:
+        if hasattr(user, 'funcionario'):
+            func = user.funcionario
+            rh_names = ['RH', 'Recursos Humanos', 'Gestão de Pessoas']
+            
+            # Equipe Principal
+            if func.equipe and func.equipe.nome in rh_names: return True
+            
+            # Equipes Secundárias
+            if func.outras_equipes.filter(nome__in=rh_names).exists(): return True
+    except Exception:
+        pass
+        
+    return False
+
+class RHAccessMixin:
+    """Libera acesso total para quem é do RH, independente das flags do Django Admin"""
+    def has_module_permission(self, request):
+        return is_rh_member(request.user) or super().has_module_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        return is_rh_member(request.user) or super().has_view_permission(request, obj)
+
+    def has_add_permission(self, request):
+        return is_rh_member(request.user) or super().has_add_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        return is_rh_member(request.user) or super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return is_rh_member(request.user) or super().has_delete_permission(request, obj)
+
 
 # --- FORMULÁRIO PERSONALIZADO ---
 class FuncionarioAdminForm(forms.ModelForm):
@@ -27,8 +83,10 @@ class FuncionarioAdminForm(forms.ModelForm):
             self.fields['is_active'].initial = self.instance.usuario.is_active
 
 
-# --- ADMIN FUNCIONÁRIO ---
-class FuncionarioAdmin(admin.ModelAdmin):
+# --- ADMINS ---
+
+@admin.register(Funcionario)
+class FuncionarioAdmin(RHAccessMixin, admin.ModelAdmin):
     form = FuncionarioAdminForm
     list_display = ('nome_completo', 'cargo', 'equipe', 'get_local_trabalho')
     list_filter = ('local_trabalho_estado', 'equipe', 'cargo') 
@@ -74,9 +132,14 @@ class FuncionarioAdmin(admin.ModelAdmin):
         email = form.cleaned_data['email']
         password = form.cleaned_data['password']
         is_active = form.cleaned_data['is_active']
-        nomes = obj.nome_completo.strip().split()
-        first_name = nomes[0].title()
-        last_name = ' '.join(nomes[1:]).title() if len(nomes) > 1 else ''
+        
+        if obj.nome_completo:
+            nomes = obj.nome_completo.strip().split()
+            first_name = nomes[0].title()
+            last_name = ' '.join(nomes[1:]).title() if len(nomes) > 1 else ''
+        else:
+            first_name = 'Usuario'
+            last_name = 'Novo'
 
         if change and obj.usuario:
             user = obj.usuario
@@ -103,8 +166,8 @@ class FuncionarioAdmin(admin.ModelAdmin):
                      obj.usuario = User.objects.get(username=username)
                      obj.save()
 
-
-class EquipeAdmin(admin.ModelAdmin):
+@admin.register(Equipe)
+class EquipeAdmin(RHAccessMixin, admin.ModelAdmin):
     list_display = ('nome', 'local_trabalho', 'listar_gestores')
     search_fields = ('nome', 'local_trabalho')
     list_filter = ('local_trabalho',) 
@@ -113,8 +176,12 @@ class EquipeAdmin(admin.ModelAdmin):
         return ", ".join([g.nome_completo.split()[0] for g in obj.gestores.all()])
     listar_gestores.short_description = "Gestores"
 
+@admin.register(Cargo)
+class CargoAdmin(RHAccessMixin, admin.ModelAdmin):
+    pass
 
-class RegistroPontoAdmin(admin.ModelAdmin):
+@admin.register(RegistroPonto)
+class RegistroPontoAdmin(RHAccessMixin, admin.ModelAdmin):
     list_display = ('funcionario', 'data', 'entrada_manha', 'saida_tarde', 'status_assinaturas')
     list_filter = ('data', 'funcionario__equipe', 'assinado_funcionario', 'assinado_gestor')
     search_fields = ('funcionario__nome_completo',)
@@ -126,8 +193,8 @@ class RegistroPontoAdmin(admin.ModelAdmin):
     status_assinaturas.short_description = "Assinaturas"
 
 
-# --- ADMIN FÉRIAS (CONFIGURAÇÃO FINAL) ---
-class FeriasAdmin(admin.ModelAdmin):
+@admin.register(Ferias)
+class FeriasAdmin(RHAccessMixin, admin.ModelAdmin):
     autocomplete_fields = ['funcionario'] 
     
     list_display = ('funcionario', 'periodo_aquisitivo', 'data_inicio', 'status_etapas')
@@ -160,10 +227,8 @@ class FeriasAdmin(admin.ModelAdmin):
     )
     readonly_fields = ('aviso_assinado', 'recibo_assinado')
 
-    # --- Lógica do Botão "Salvar e Gerar PDF" ---
     def response_change(self, request, obj):
         if "_save_pdf" in request.POST:
-            # Salva (já feito pelo super) e redireciona para o download
             url = reverse('gerar_aviso_ferias_pdf', args=[obj.id])
             return redirect(url)
         return super().response_change(request, obj)
@@ -175,25 +240,122 @@ class FeriasAdmin(admin.ModelAdmin):
         return super().response_add(request, obj, post_url_continue)
 
 
-# --- REGISTROS ---
-admin.site.register(Funcionario, FuncionarioAdmin)
-admin.site.register(Equipe, EquipeAdmin)
-admin.site.register(Cargo, admin.ModelAdmin)
-admin.site.register(RegistroPonto, RegistroPontoAdmin)
-admin.site.register(Ferias, FeriasAdmin)
+@admin.register(Contracheque)
+class ContrachequeAdmin(RHAccessMixin, admin.ModelAdmin):
+    # Lista moderna via abas no Funcionario, aqui mantemos o básico
+    list_display = ('funcionario', 'referencia', 'status_envio', 'status_assinatura', 'data_ciencia', 'link_arquivo')
+    list_filter = ('ano', 'mes', 'data_ciencia')
+    search_fields = ('funcionario__nome_completo', 'funcionario__matricula')
+    
+    def referencia(self, obj):
+        return f"{obj.get_mes_display()}/{obj.ano}"
+    referencia.short_description = "Competência"
 
+    def status_envio(self, obj):
+        return format_html('<span style="color: green;"><i class="fas fa-check-circle"></i> Enviado</span>')
+    status_envio.short_description = "Envio RH"
+
+    def status_assinatura(self, obj):
+        if obj.data_ciencia:
+            return format_html('<span style="color: green; font-weight: bold;"><i class="fas fa-file-signature"></i> Assinado</span>')
+        return format_html('<span style="color: orange;"><i class="fas fa-clock"></i> Pendente</span>')
+    status_assinatura.short_description = "Status Funcionário"
+
+    def link_arquivo(self, obj):
+        if obj.arquivo:
+            return format_html('<a href="{}" target="_blank" class="button" style="padding:5px 10px;">Ver PDF</a>', obj.arquivo.url)
+        return "-"
+    link_arquivo.short_description = "Documento"
+
+    # --- FUNCIONALIDADE DE UPLOAD EM LOTE ---
+    def get_urls(self):
+        urls = super().get_urls()
+        my_urls = [
+            path('importar-lote/', self.admin_site.admin_view(self.importar_lote_view), name='importar_contracheques'),
+        ]
+        return my_urls + urls
+
+    def importar_lote_view(self, request):
+        if request.method == "POST":
+            form = UploadLoteContrachequeForm(request.POST, request.FILES)
+            if form.is_valid():
+                arquivo_geral = request.FILES['arquivo']
+                mes = int(form.cleaned_data['mes'])
+                ano = int(form.cleaned_data['ano'])
+                
+                try:
+                    self.processar_pdf(arquivo_geral, mes, ano, request)
+                    return redirect('admin:core_rh_contracheque_changelist')
+                except Exception as e:
+                    messages.error(request, f"Erro ao processar PDF: {str(e)}")
+        else:
+            form = UploadLoteContrachequeForm()
+
+        context = {
+            'form': form,
+            'title': 'Importar Contracheques em Lote (Split PDF)',
+            'site_header': self.admin_site.site_header,
+            'site_title': self.admin_site.site_title,
+            'index_title': self.admin_site.index_title,
+            'has_permission': True,
+        }
+        return render(request, 'admin/importar_contracheques.html', context)
+
+    def processar_pdf(self, arquivo, mes, ano, request):
+        if not PdfReader:
+            raise ImportError("Biblioteca pypdf não está instalada.")
+            
+        reader = PdfReader(arquivo)
+        funcionarios = Funcionario.objects.all()
+        
+        count_sucesso = 0
+        nao_encontrados = []
+
+        for page_num, page in enumerate(reader.pages):
+            texto_pagina = page.extract_text()
+            if not texto_pagina: 
+                texto_pagina = ""
+            texto_pagina = texto_pagina.upper()
+            
+            funcionario_encontrado = None
+
+            for func in funcionarios:
+                nome_upper = func.nome_completo.upper().strip()
+                if nome_upper and nome_upper in texto_pagina:
+                    funcionario_encontrado = func
+                    break
+            
+            if funcionario_encontrado:
+                writer = PdfWriter()
+                writer.add_page(page)
+                
+                pdf_bytes = io.BytesIO()
+                writer.write(pdf_bytes)
+                pdf_content = ContentFile(pdf_bytes.getvalue())
+                
+                filename = f"contracheque_{funcionario_encontrado.id}_{mes}_{ano}.pdf"
+
+                Contracheque.objects.update_or_create(
+                    funcionario=funcionario_encontrado,
+                    mes=mes,
+                    ano=ano,
+                    defaults={'arquivo': None}
+                )
+                
+                cc = Contracheque.objects.get(funcionario=funcionario_encontrado, mes=mes, ano=ano)
+                cc.arquivo.save(filename, pdf_content, save=True)
+                
+                count_sucesso += 1
+            else:
+                nao_encontrados.append(f"Página {page_num + 1}")
+
+        messages.success(request, f"{count_sucesso} contracheques processados e enviados com sucesso!")
+        if nao_encontrados:
+            messages.warning(request, f"Atenção: Não foi possível identificar o funcionário nas páginas: {', '.join(nao_encontrados)}")
+
+# Remove User/Group do admin padrão se já não estiverem removidos
 try:
     admin.site.unregister(User)
     admin.site.unregister(Group)
 except admin.sites.NotRegistered:
     pass
-
-@admin.register(Contracheque)
-class ContrachequeAdmin(admin.ModelAdmin):
-    list_display = ('funcionario', 'mes', 'ano', 'status_assinatura', 'data_ciencia')
-    list_filter = ('ano', 'mes', 'data_ciencia')
-    search_fields = ('funcionario__nome_completo', 'funcionario__cpf')
-    
-    def status_assinatura(self, obj):
-        return "✅ Assinado" if obj.data_ciencia else "⏳ Pendente"
-    status_assinatura.short_description = "Status"
